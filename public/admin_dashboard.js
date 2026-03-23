@@ -71,7 +71,8 @@ function showPage(id) {
       break;
     case "inventory":
       loadInventory();
-      toggleInventoryTab('equipment');
+      filterInventory(); // Apply current filters after loading
+      //toggleInventoryTab('equipment');
       break;
     case "borrowed":
       loadBorrowed();
