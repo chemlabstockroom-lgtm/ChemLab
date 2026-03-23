@@ -9,7 +9,7 @@ const nodemailer = require("nodemailer");
 // For @dlsud.edu.ph (Microsoft / Office 365), use these settings.
 // If your school uses a different mail server, update host/port accordingly.
 const transporter = nodemailer.createTransport({
-  host: process.env.MAIL_HOST || "smtp.office365.com", // Microsoft Office 365 SMTP
+  host: process.env.MAIL_HOST || "in-v3.mailjet.com", // mailjet is for production.
   port: parseInt(process.env.MAIL_PORT) || 587,
   secure: false, // true for port 465, false for 587 (STARTTLS)
   auth: {
@@ -17,8 +17,8 @@ const transporter = nodemailer.createTransport({
     pass: process.env.MAIL_PASS    // App password or email password
   },
   tls: {
-    ciphers: "SSLv3",
-    rejectUnauthorized: false      // Needed for some Office 365 configs
+    
+    rejectUnauthorized: false      // helping with university network filters
   }
 });
 
