@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChemLab Portal</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+
+    <header>
+        <div class="nav-island">
+            <div class="logo">
+                <span class="material-symbols-outlined logo-icon">science</span>
+                ChemLab Portal
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="#" onclick="openModal('loginModal')">Login</a></li>
+                    <li><a href="#" class="reg-btn" onclick="openModal('regModal')">Register</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main class="hero">
+      <div class="bubbles">
+        <span style="--i:11;"></span>
+        <span style="--i:15;"></span>
+        <span style="--i:24;"></span>
+        <span style="--i:10;"></span>
+        <span style="--i:14;"></span>
+        <span style="--i:23;"></span>
+        <span style="--i:18;"></span>
+        <span style="--i:16;"></span>
+    </div>
+        <div class="hero-card">
+            <h1>Welcome to ChemLab</h1>
+            <p>Your gateway to lab resources, experiment tracking, and academic management.</p>
+        </div>
+    </main>
+
+    <div id="loginModal" class="modal-overlay">
+        <div class="particle" style="left: 10%; animation-delay: 0s; width: 50px; height: 50px;"></div>
+        <div class="particle" style="left: 40%; animation-delay: 2s; width: 20px; height: 20px;"></div>
+        <div class="particle" style="left: 70%; animation-delay: 5s; width: 35px; height: 35px;"></div>
+        <div class="particle" style="left: 90%; animation-delay: 1s; width: 15px; height: 15px;"></div>
+        
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal('loginModal')">&times;</span>
+            <h2>Portal Login</h2>
+            <p>Select your access level to continue.</p>
+            
+            <div class="modal-options">
+                <a href="admin_login.html" class="modal-card">
+                    <span class="material-symbols-outlined icon">admin_panel_settings</span>
+                    <h3>Admin</h3>
+                </a>
+                
+                <a href="student_login.html" class="modal-card">
+                    <span class="material-symbols-outlined icon">school</span>
+                    <h3>Student</h3>
+                </a>
+
+                <a href="guest_login.html" class="modal-card">
+                    <span class="material-symbols-outlined icon">person_search</span>
+                    <h3>Guest</h3>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div id="regModal" class="modal-overlay">
+        <div class="particle" style="left: 15%; animation-delay: 1s; width: 40px; height: 40px;"></div>
+        <div class="particle" style="left: 55%; animation-delay: 4s; width: 25px; height: 25px;"></div>
+        <div class="particle" style="left: 85%; animation-delay: 2s; width: 45px; height: 45px;"></div>
+        
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal('regModal')">&times;</span>
+            <h2>Create Account</h2>
+            <p>Choose the account type that matches your role.</p>
+            
+            <div class="modal-options">
+                <a href="registration.html" class="modal-card">
+                    <span class="material-symbols-outlined icon">history_edu</span>
+                    <h3>Student</h3>
+                    <p>Register for lab sessions and track your progress.</p>
+                </a>
+                
+                <a href="guest_registration.html" class="modal-card">
+                    <span class="material-symbols-outlined icon">badge</span>
+                    <h3>Guest</h3>
+                    <p>Apply for temporary visitor or laboratory access.</p>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal-overlay')) {
+                event.target.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

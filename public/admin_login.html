@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Admin Login - ChemLab</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link rel="stylesheet" href="admin_login.css">
+</head>
+<body>
+
+  <div class="logo-section">
+    <div class="chemlab-logo">
+        <i class="fas fa-flask logo-icon"></i>
+    </div>
+    <h1>ChemLab Portal</h1>
+    <p>Administrator Access</p>
+  </div>
+
+  <div class="login-container">
+
+    <!-- ===== LOGIN PANEL ===== -->
+    <div id="loginPanel">
+      <h2>Admin Login</h2>
+      <form id="alogin">
+        <label for="email">Admin Email</label>
+        <input id="email" name="email" type="email" placeholder="admin@university.edu" required />
+
+        <label for="password">Password</label>
+        <div class="password-wrapper">
+          <input id="password" name="password" type="password" placeholder="••••••••" required />
+          <i class="fas fa-eye" id="togglePassword"></i>
+        </div>
+
+        <button type="submit">Login</button>
+      </form>
+
+      <div id="msg"></div>
+
+      <div class="form-footer">
+        <a href="#" class="link" onclick="showForgot(true); return false;">Forgot Password?</a>
+        <span class="divider">|</span>
+        <a href="index.html" class="link">Return to Home</a>
+      </div>
+    </div>
+
+    <!-- ===== FORGOT PASSWORD PANEL ===== -->
+    <div id="forgotPanel" style="display:none;">
+      <h2>Reset Password</h2>
+      <p style="font-size:0.9rem; color:#aaa; margin-bottom:20px;">
+        Enter your registered admin email. We'll send a temporary password to that address.
+      </p>
+
+      <form id="forgotForm">
+        <label for="forgotEmail">Admin Email</label>
+        <input id="forgotEmail" type="email" placeholder="admin@university.edu" required />
+        <button type="submit">Send Temporary Password</button>
+      </form>
+
+      <div id="forgotMsg"></div>
+
+      <div class="form-footer">
+        <a href="#" class="link" onclick="showForgot(false); return false;">← Back to Login</a>
+      </div>
+    </div>
+
+  </div><!-- end .login-container -->
+
+  <footer>
+    © 2026 ChemLab Portal | Restricted Access
+  </footer>
+
+  <script>
+  document.getElementById('togglePassword').addEventListener('click', function () {
+    const pwd = document.getElementById('password');
+    pwd.setAttribute('type', pwd.getAttribute('type') === 'password' ? 'text' : 'password');
+    this.classList.toggle('fa-eye');
+    this.classList.toggle('fa-eye-slash');
+  });
+
+  function showForgot(show) {
+    document.getElementById('loginPanel').style.display  = show ? 'none' : 'block';
+    document.getElementById('forgotPanel').style.display = show ? 'block' : 'none';
+    clearMsg('msg');
+    clearMsg('forgotMsg');
+  }
+
+  function clearMsg(id) {
+    const el = document.getElementById(id);
+    el.innerText = '';
+    el.style.display = 'none';
+  }
+
+  function showMsg(id, text, isError) {
+    const el = document.getElementById(id);
+    el.style.display    = 'block';
+    el.innerText        = text;
+    el.style.marginTop  = '16px';
+    el.style.padding    = '12px 16px';
+    el.style.borderRadius = '8px';
+    el.style.fontSize   = '0.9rem';
+    el.style.fontWeight = '500';
+    el.style.background = isError ? 'rgba(255,107,107,0.12)' : 'rgba(168,224,99,0.1)';
+    el.style.border     = isError ? '1px solid rgba(255,107,107,0.4)' : '1px solid rgba(168,224,99,0.3)';
+    el.style.color      = isError ? '#ff6b6b' : '#ffd700';
+  }
+
+  document.getElementById('alogin').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.innerText = 'Verifying...';
+    try {
+      const res = await fetch('/api/auth/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: e.target.email.value.trim(),
+          password: e.target.password.value
+        })
+      });
+      const j = await res.json();
+      if (res.ok) {
+        localStorage.setItem('adminToken', j.token);
+        showMsg('msg', 'Welcome, ' + j.name + '! Redirecting...', false);
+        setTimeout(() => { window.location.href = 'admin_dashboard.html'; }, 1000);
+      } else {
+        showMsg('msg', j.message || 'Access denied. Please check your credentials.', true);
+        btn.disabled = false;
+        btn.innerText = 'Login';
+      }
+    } catch {
+      showMsg('msg', 'Cannot connect to the server. Please check your connection.', true);
+      btn.disabled = false;
+      btn.innerText = 'Login';
+    }
+  });
+
+  document.getElementById('forgotForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.innerText = 'Sending...';
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          identifier: document.getElementById('forgotEmail').value.trim(),
+          role: 'admin'
+        })
+      });
+      const j = await res.json();
+      showMsg('forgotMsg', j.message || 'Request processed.', !res.ok);
+      if (res.ok) document.getElementById('forgotForm').reset();
+    } catch {
+      showMsg('forgotMsg', 'Cannot connect to the server.', true);
+    } finally {
+      btn.disabled = false;
+      btn.innerText = 'Send Temporary Password';
+    }
+  });
+  </script>
+</body>
+</html>

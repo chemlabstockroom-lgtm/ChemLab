@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Student Registration - ChemLab</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link rel="stylesheet" href="student_registration.css">
+</head>
+<body>
+
+  <div class="logo-section">
+    <img src="dlsud logo.png" alt="DLSU-D Logo" class="uni-logo">
+    <h1>De La Salle University–Dasmariñas</h1>
+    <p>Student Portal Access</p>
+  </div>
+
+  <div class="register-container">
+    <h2>Student Registration</h2>
+    <form id="reg">
+      <label for="fullName">Full Name</label>
+      <input id="fullName" name="fullName" placeholder="Juan Dela Cruz" required />
+      
+      <label for="email">School Email</label>
+      <input id="email" name="email" type="email" placeholder="username@dlsud.edu.ph" required />
+
+      <div class="form-row">
+        <div class="input-group">
+            <label for="cys">Course-Year-Section</label>
+            <input id="cys" name="cys" placeholder="BSCS-21" required />
+        </div>
+        <div class="input-group">
+            <label for="classSchedule">Class Schedule</label>
+            <input id="classSchedule" name="classSchedule" placeholder="Mon 1:00-4:00" required />
+        </div>
+      </div>
+
+      <label for="professor">Professor</label>
+      <input id="professor" name="professor" placeholder="Enter Professor's Name" required />
+
+      <label for="password">Password</label>
+      <div class="password-wrapper">
+        <input id="password" name="password" type="password" placeholder="••••••••" required />
+        <i class="fas fa-eye" id="togglePassword"></i>
+      </div>
+      <div class="password-hint">
+        Min. 8 chars, include uppercase, number, and symbol.
+      </div>
+
+      <button type="submit">Register</button>
+    </form>
+    
+    <div id="msg" style="display:none; margin-top: 16px; padding: 12px 16px; border-radius: 8px; font-size: 0.9rem; font-weight: 500;"></div>
+    
+    <a href="index.html" class="back-link">
+        <i class="fas fa-arrow-left"></i> Back to Portal
+    </a>
+  </div>
+
+  <footer>
+    © 2026 De La Salle University–Dasmariñas | Student ChemLab
+  </footer>
+
+<script>
+  const togglePassword = document.querySelector('#togglePassword');
+  const passwordInput = document.querySelector('#password');
+
+  togglePassword.addEventListener('click', function () {
+    const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+    passwordInput.setAttribute('type', type);
+    this.classList.toggle('fa-eye');
+    this.classList.toggle('fa-eye-slash');
+  });
+
+  function showMsg(text, isError) {
+    const msg = document.getElementById('msg');
+    msg.style.display = 'block';
+    msg.innerText = text;
+    if (isError) {
+      msg.style.background = 'rgba(255, 107, 107, 0.12)';
+      msg.style.border = '1px solid rgba(255, 107, 107, 0.4)';
+      msg.style.color = '#ff6b6b';
+    } else {
+      msg.style.background = 'rgba(168, 224, 99, 0.1)';
+      msg.style.border = '1px solid rgba(168, 224, 99, 0.3)';
+      msg.style.color = '#a8e063';
+    }
+  }
+
+  document.getElementById('reg').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = e.target;
+    const btn = f.querySelector('button[type="submit"]');
+
+    const payload = {
+      fullName: f.fullName.value.trim(),
+      email: f.email.value.trim(),
+      cys: f.cys.value.trim(),
+      professor: f.professor.value.trim(),
+      classSchedule: f.classSchedule.value.trim(),
+      password: f.password.value
+    };
+
+    btn.disabled = true;
+    btn.innerText = 'Registering...';
+
+    try {
+      const res = await fetch('/api/students/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const j = await res.json();
+
+      if (res.ok) {
+        showMsg('Registration successful! Please visit the stockroom to get your Lab ID.', false);
+        f.reset();
+        setTimeout(() => { window.location.href = "student_login.html"; }, 2500);
+      } else {
+        showMsg(j.message || 'Registration failed. Please try again.', true);
+        btn.disabled = false;
+        btn.innerText = 'Register';
+      }
+    } catch (err) {
+      showMsg('Cannot connect to the server. Please check your connection.', true);
+      btn.disabled = false;
+      btn.innerText = 'Register';
+    }
+  });
+</script>
+</body>
+</html>

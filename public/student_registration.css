@@ -1,0 +1,166 @@
+body {
+    margin: 0;
+    font-family: "Segoe UI", Roboto, Arial, sans-serif;
+    /* Consistent Cinematic Background */
+    background: linear-gradient(rgba(0, 43, 22, 0.85), rgba(0, 20, 10, 0.95)), 
+                url("https://wallpaperaccess.com/full/3481577.jpg") center/cover no-repeat fixed;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 60px 20px;
+    color: white;
+}
+
+/* --- BRANDING --- */
+.logo-section {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+.uni-logo {
+    width: 90px;
+    filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.2));
+    margin-bottom: 15px;
+}
+
+.logo-section h1 {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0;
+    background: linear-gradient(to bottom, #ffffff, #bbbbbb);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.logo-section p {
+    font-size: 13px;
+    opacity: 0.7;
+    margin-top: 5px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+
+/* --- THE GLASS BOX --- */
+.register-container {
+    background: rgba(255, 255, 255, 0.07);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    padding: 40px;
+    border-radius: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+    width: 100%;
+    max-width: 480px; /* Slightly wider for the row items */
+    text-align: center;
+}
+
+h2 {
+    margin-bottom: 25px;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+/* --- FORM LAYOUT --- */
+.form-row {
+    display: flex;
+    gap: 15px;
+}
+
+.input-group {
+    flex: 1;
+}
+
+label {
+    display: block;
+    text-align: left;
+    margin: 15px 0 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.8);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+input {
+    width: 100%;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    font-size: 14px;
+    color: white;
+    transition: all 0.3s ease;
+    box-sizing: border-box;
+}
+
+input:focus {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: #ffd700; /* Gold Focus */
+    outline: none;
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.1);
+}
+
+.password-wrapper {
+    position: relative;
+}
+
+.password-wrapper i {
+    position: absolute;
+    right: 15px;
+    top: 14px;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.password-hint {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.4);
+    text-align: left;
+    margin: 5px 0 20px;
+}
+
+/* --- ACTION BUTTON --- */
+button {
+    width: 100%;
+    padding: 15px;
+    background: #ffd700; /* Matching the landing page accent gold */
+    color: #002b16;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    margin-top: 10px;
+}
+
+button:hover {
+    background: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(255, 255, 255, 0.1);
+}
+
+#msg {
+    margin-top: 15px;
+    font-size: 14px;
+}
+
+.back-link {
+    display: inline-block;
+    margin-top: 20px;
+    color: rgba(255, 255, 255, 0.5);
+    text-decoration: none;
+    font-size: 13px;
+}
+
+.back-link:hover {
+    color: #ffd700;
+}
+
+footer {
+    margin-top: 30px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.4);
+}

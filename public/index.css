@@ -1,0 +1,313 @@
+/* --- 1. GLOBAL RESET & VARIABLES --- */
+:root {
+    --primary-green: #004620;
+    --deep-emerald: #013217;
+    --accent-gold: #ffd700;
+    --white: #ffffff;
+    --glass-island: rgba(255, 255, 255, 0.1); 
+    --glass-border: rgba(255, 255, 255, 0.2);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+body {
+    background: #f5f5f5;
+    color: #222;
+    overflow-x: hidden;
+}
+
+/* --- 2. FLOATING ISLAND NAVIGATION --- */
+header {
+    width: 100%;
+    display: flex;
+    justify-content: center; 
+    padding-top: 25px;       
+    position: fixed; 
+    top: 0;
+    left: 0;
+    z-index: 1000;
+    background: transparent;  
+}
+
+.nav-island {
+    background: var(--glass-island);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 35px;
+    border-radius: 50px; 
+    width: 90%;
+    max-width: 1000px;
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+}
+
+.nav-island:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: translateY(2px);
+}
+
+/* --- LOGO ANIMATION --- */
+.logo {
+    color: white;
+    font-weight: 700;
+    font-size: 1.3rem;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.logo-icon {
+    font-size: 32px !important;
+    color: var(--accent-gold);
+    transition: all 0.5s ease;
+}
+
+.logo:hover {
+    transform: scale(1.03);
+    text-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+}
+
+.logo:hover .logo-icon {
+    transform: rotate(20deg) scale(1.2);
+    color: #fff;
+    filter: drop-shadow(0 0 8px var(--accent-gold));
+}
+
+/* --- NAV LINKS & BUTTONS --- */
+nav ul {
+    list-style: none;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+nav ul li a {
+    text-decoration: none;
+    color: white;
+    font-size: 0.95rem;
+    font-weight: 500;
+    padding: 10px 20px;
+    border-radius: 30px;
+    transition: all 0.3s ease;
+}
+
+nav ul li a:hover {
+    color: var(--accent-gold);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.reg-btn {
+    background: var(--accent-gold);
+    color: var(--primary-green) !important;
+    font-weight: 700 !important;
+    box-shadow: 0 4px 15px rgba(255, 215, 0, 0.2);
+}
+
+.reg-btn:hover {
+    background: white !important;
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(255, 255, 255, 0.3);
+}
+
+/* --- 3. HERO SECTION --- */
+.hero {
+    height: 100vh;
+    background: linear-gradient(rgba(0, 43, 22, 0.8), rgba(0, 20, 10, 0.85)), 
+                url("https://wallpaperaccess.com/full/3481577.jpg") center/cover no-repeat;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(15px) saturate(150%);
+    -webkit-backdrop-filter: blur(15px) saturate(150%);
+    padding: 50px 70px;
+    border-radius: 40px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    max-width: 850px;
+    z-index: 5;
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+}
+
+.hero-card h1 {
+    font-size: 4rem;
+    font-weight: 800;
+    margin-bottom: 15px;
+    letter-spacing: -1.5px;
+    background: linear-gradient(to bottom, #ffffff 30%, #cccccc 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.hero-card p {
+    font-size: 1.25rem;
+    line-height: 1.6;
+    opacity: 0.85;
+}
+
+/* --- BUBBLE ANIMATION --- */
+.bubbles {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 1;
+}
+
+.bubbles span {
+    position: absolute;
+    bottom: -50px;
+    background: rgba(255, 215, 0, 0.15);
+    border-radius: 50%;
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.1);
+    animation: animateBubbles 20s linear infinite;
+    animation-duration: calc(150s / var(--i));
+    left: calc(var(--i) * 4%);
+}
+
+.bubbles span:nth-child(odd) { width: 40px; height: 40px; }
+.bubbles span:nth-child(even) { width: 20px; height: 20px; }
+
+@keyframes animateBubbles {
+    0% { transform: translateY(0) scale(0); opacity: 0; }
+    20% { opacity: 0.4; }
+    80% { opacity: 0.4; }
+    100% { transform: translateY(-110vh) scale(1.5); opacity: 0; }
+}
+
+/* --- 4. MODAL & PARTICLE SYSTEM (RESTORED) --- */
+@keyframes fluidMove {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+@keyframes floatParticles {
+    0% { transform: translateY(0) scale(1); opacity: 0; }
+    20% { opacity: 0.5; }
+    100% { transform: translateY(-120vh) scale(1.5); opacity: 0; }
+}
+
+@keyframes modalPop {
+    from { transform: translateY(30px) scale(0.9); opacity: 0; }
+    to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    /* Moving Gradient Background */
+    background: linear-gradient(-45deg, #001a0d, #004620, #053d38, #001108);
+    background-size: 400% 400%;
+    animation: fluidMove 15s ease infinite;
+    z-index: 2000;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(12px);
+    overflow: hidden;
+}
+
+.particle {
+    position: absolute;
+    bottom: -100px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    animation: floatParticles 10s infinite linear;
+    pointer-events: none;
+}
+
+.modal-content {
+    background: rgba(255, 255, 255, 0.96);
+    padding: 50px 40px;
+    border-radius: 35px;
+    width: 90%;
+    max-width: 750px;
+    text-align: center;
+    position: relative;
+    z-index: 2001;
+    box-shadow: 0 45px 120px rgba(0, 0, 0, 0.6);
+    animation: modalPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* --- 5. MODAL CARDS --- */
+.modal-options {
+    display: flex;
+    gap: 20px;
+    margin-top: 30px;
+}
+
+.modal-card {
+    background: white;
+    flex: 1;
+    text-decoration: none;
+    color: #333;
+    padding: 35px 15px;
+    border-radius: 25px;
+    border: 1px solid #eee;
+    transition: all 0.4s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.modal-card:hover {
+    transform: translateY(-12px);
+    border-color: var(--accent-gold);
+    box-shadow: 0 20px 40px rgba(0, 70, 32, 0.2);
+}
+
+.modal-card .icon {
+    font-size: 50px;
+    color: var(--primary-green);
+    margin-bottom: 15px;
+    background: #f0fbf4;
+    width: 90px; height: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: 0.3s;
+}
+
+.modal-card:hover .icon {
+    background: var(--primary-green);
+    color: var(--accent-gold);
+    transform: rotateY(360deg);
+}
+
+.close-btn {
+    position: absolute;
+    top: 25px; right: 30px;
+    font-size: 2.2rem;
+    cursor: pointer;
+    color: #bbb;
+    transition: 0.3s;
+}
+
+.close-btn:hover { color: #ff4d4d; transform: rotate(90deg); }
+
+/* --- 6. RESPONSIVENESS --- */
+@media (max-width: 768px) {
+    .nav-island { width: 95%; padding: 10px 15px; }
+    .hero-card h1 { font-size: 2.5rem; }
+    .modal-options { flex-direction: column; }
+}

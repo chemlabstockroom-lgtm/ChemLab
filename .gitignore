@@ -1,0 +1,12 @@
+# Ignore dependencies
+node_modules/
+
+# Ignore local editor settings
+.vscode/
+
+# Ignore environment variables (crucial if you have a .env file later)
+.env
+
+# Ignore build folders
+dist/
+build/

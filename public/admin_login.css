@@ -1,0 +1,175 @@
+body {
+    margin: 0;
+    font-family: "Segoe UI", Roboto, Arial, sans-serif;
+    /* Consistent Cinematic Background */
+    background: linear-gradient(rgba(0, 43, 22, 0.88), rgba(0, 10, 5, 0.96)), 
+                url("https://wallpaperaccess.com/full/3481577.jpg") center/cover no-repeat fixed;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+    color: white;
+}
+
+/* --- BRANDING (Flask Logo) --- */
+.logo-section {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+.chemlab-logo .logo-icon {
+    font-size: 55px;
+    color: #ffd700;
+    filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.4));
+    margin-bottom: 10px;
+    animation: pulseGlow 3s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+    0%, 100% { transform: scale(1); opacity: 0.9; }
+    50% { transform: scale(1.08); opacity: 1; filter: drop-shadow(0 0 25px rgba(255, 215, 0, 0.6)); }
+}
+
+.logo-section h1 {
+    font-size: 26px;
+    font-weight: 800;
+    margin: 0;
+    background: linear-gradient(to bottom, #ffffff, #cccccc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.logo-section p {
+    font-size: 11px;
+    opacity: 0.6;
+    margin-top: 5px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+/* --- GLASS CONTAINER --- */
+.login-container {
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(25px) saturate(180%);
+    -webkit-backdrop-filter: blur(25px) saturate(180%);
+    padding: 45px 40px;
+    border-radius: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 40px 80px rgba(0, 0, 0, 0.6);
+    width: 100%;
+    max-width: 380px;
+    text-align: center;
+}
+
+h2 {
+    margin-bottom: 30px;
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+/* --- FORM ELEMENTS --- */
+label {
+    display: block;
+    text-align: left;
+    margin: 15px 0 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.7);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+input {
+    width: 100%;
+    padding: 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    font-size: 15px;
+    color: white;
+    transition: all 0.3s ease;
+    box-sizing: border-box;
+}
+
+input:focus {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: #ffd700;
+    outline: none;
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.2);
+}
+
+.password-wrapper {
+    position: relative;
+    margin-bottom: 25px;
+}
+
+.password-wrapper i {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+/* --- BUTTON --- */
+button {
+    width: 100%;
+    padding: 16px;
+    background: #ffd700;
+    color: #002b16;
+    border: none;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+button:hover {
+    background: #ffffff;
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px rgba(255, 255, 255, 0.1);
+}
+
+#msg {
+    margin-top: 20px;
+    font-size: 14px;
+    min-height: 20px;
+}
+
+/* --- LINKS --- */
+.form-footer {
+    margin-top: 30px;
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    font-size: 13px;
+}
+
+.link {
+    color: rgba(255, 255, 255, 0.5);
+    text-decoration: none;
+    transition: 0.3s;
+}
+
+.link:hover {
+    color: #ffd700;
+}
+
+.divider {
+    color: rgba(255, 255, 255, 0.1);
+}
+
+footer {
+    margin-top: 40px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.4);
+    letter-spacing: 1px;
+}

@@ -1,0 +1,316 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Student Dashboard</title>
+  <link rel="stylesheet" href="student_dashboard.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+</head>
+<body>
+  <input type="checkbox" id="menu-toggle" class="menu-checkbox">
+  <label for="menu-toggle" class="burger-label">
+    <i class="fa-solid fa-bars"></i>
+  </label>
+
+  <div class="sidebar">
+    <div class="sidebar-logo">
+        <i class="fas fa-flask logo-icon"></i>
+        <span>ChemLab</span>
+    </div>
+
+    <div class="profile">
+        <p id="sidebarUserName">Loading...</p>
+    </div>
+
+    <ul>
+        <li>
+            <button onclick="showPage('home')">
+                <i class="fa-solid fa-house"></i> <span>Home</span>
+            </button>
+        </li>
+        <li>
+            <button onclick="showPage('borrow')">
+                <i class="fa-solid fa-hand-holding"></i> <span>Borrow</span>
+            </button>
+        </li>
+        <li>
+            <button onclick="showPage('accountability')">
+                <i class="fa-solid fa-file-circle-check"></i> <span>Student Accountability</span>
+            </button>
+        </li>
+        <li>
+            <button onclick="showPage('profile')">
+                <i class="fa-solid fa-user"></i> <span>My Profile</span>
+            </button>
+        </li>
+        <li class="logout-item">
+            <button onclick="logout()">
+                <i class="fa-solid fa-right-from-bracket"></i> <span>Logout</span>
+            </button>
+        </li>
+    </ul>
+  </div>
+
+  <!-- Main Content -->
+  <div class="content">
+
+  <div id="home" class="page active">
+    <h1>Welcome, <span id="studentName">Student</span></h1>
+
+    <div class="home-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 20px;">
+      <div class="card stat-card" style="border-left: 5px solid #ffd700; background: rgba(255,255,255,0.02); padding: 20px; border-radius: 12px;">
+        <h4 style="color: #888; font-size: 0.8rem; margin: 0;">LABORATORY ID</h4>
+        <p id="studentLabID" style="margin: 10px 0; font-weight: bold; color: #a8e063;">Loading...</p>
+        <small style="color: #666;">Official ID</small>
+      </div>
+
+      <div class="card stat-card" style="border-left: 5px solid #a8e063; background: rgba(255,255,255,0.02); padding: 20px; border-radius: 12px;">
+        <h4 style="color: #888; font-size: 0.8rem; margin: 0;">CLASS / YEAR / SECTION</h4>
+        <p id="studentCYS" style="margin: 10px 0; font-size: 1.1rem; font-weight: bold; color: #fff;">Loading...</p>
+      </div>
+
+      <div class="card stat-card" style="border-left: 5px solid #00d4ff; background: rgba(255,255,255,0.02); padding: 20px; border-radius: 12px;">
+        <h4 style="color: #888; font-size: 0.8rem; margin: 0;">ACCOUNT STATUS</h4>
+        <p id="studentStatus" style="margin: 5px 0; font-size: 1.2rem; font-weight: bold; color: #fff;">Loading...</p>
+      </div>
+    </div>
+
+    <div class="home-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+      <div class="card" style="border: 1px solid #3c562a; background: rgba(255,255,255,0.03); padding: 20px; border-radius: 12px;">
+        <h3 style="color: #ffd700; font-size: 1rem; margin-top: 0;">Professor</h3>
+        <p id="studentProf" style="color: #ccc; margin: 0;">Loading...</p>
+      </div>
+
+      <div class="card" style="border: 1px solid #3c562a; background: rgba(255,255,255,0.03); padding: 20px; border-radius: 12px;">
+        <h3 style="color: #ffd700; font-size: 1rem; margin-top: 0;">Schedule</h3>
+        <p id="studentSched" style="color: #ccc; margin: 0;">Loading...</p>
+      </div>
+    </div>
+  </div> <div id="profile" class="page">
+    <h1>My Profile</h1>
+    <div id="profileViewSection" class="card profile-card">
+      <h3>Personal Information</h3>
+      <p><b>Full Name:</b> <span id="viewFullName"></span></p>
+      <p><b>CYS:</b> <span id="viewCYS"></span></p>
+      <p><b>Professor:</b> <span id="viewProfessor"></span></p>
+      <p><b>Class Schedule:</b> <span id="viewSchedule"></span></p>
+      <p><b>Lab ID:</b> <span id="viewLabID"></span></p>
+      <p><b>Account Status:</b> <span id="viewStatus" class="status-indicator"></span></p>
+      <button id="editButton" onclick="toggleEditMode(true)" style="margin-top: 15px;">Edit Profile</button>
+      <p id="viewMessage" style="color: #a8e063; margin-top: 10px;"></p>
+    </div>
+
+    <form id="profileUpdateForm" onsubmit="handleProfileUpdate(event)" style="display: none;">
+      <div class="card profile-card">
+        <h3>Edit Personal Information</h3>
+        <label for="profileFullName">Full Name:</label>
+        <input type="text" id="profileFullName" name="fullName" required>
+        <label for="profileCYS">CYS:</label>
+        <input type="text" id="profileCYS" name="cys" required>
+        <label for="profileProfessor">Professor:</label>
+        <input type="text" id="profileProfessor" name="professor" required>
+        <label for="profileSchedule">Class Schedule:</label>
+        <input type="text" id="profileSchedule" name="classSchedule" required>
+      </div>
+
+      <div class="card password-card" style="margin-top: 20px;">
+          <h3>Change Password</h3>
+          <label for="currentPassword">Current Password:</label>
+          <input type="password" id="currentPassword" name="currentPassword">
+          <label for="newPassword">New Password:</label>
+          <input type="password" id="newPassword" name="newPassword">
+          <button type="submit" style="margin-top: 15px;">Save Changes</button>
+          <button type="button" onclick="toggleEditMode(false)" style="margin-top: 15px; margin-left: 10px;">Cancel</button>
+          <p id="profileMessage" style="font-weight: bold; margin-top: 10px;"></p>
+        </div>
+    </form>
+  </div>
+
+    <!-- Borrow -->
+    <div id="borrow" class="page">
+      <h1>Borrow Experiment</h1>
+      <div id="experimentsList"></div>
+    </div>
+
+    <!-- Items -->
+<div id="items" class="page">
+  <h1>Available Items</h1>
+
+  <div class="category">
+    <h2>Equipments</h2>
+    <table class="item-table">
+      <thead>
+        <tr><th>Item Name</th><th>Quantity</th><th>Description</th></tr>
+      </thead>
+      <tbody id="equipmentsTable"></tbody>
+    </table>
+  </div>
+
+  <div class="category">
+    <h2>Chemicals</h2>
+    <table class="item-table">
+      <thead>
+        <tr><th>Item Name</th><th>Quantity</th><th>Description</th></tr>
+      </thead>
+      <tbody id="chemicalsTable"></tbody>
+    </table>
+  </div>
+
+  <div class="category">
+    <h2>Glassware</h2>
+    <table class="item-table">
+      <thead>
+        <tr><th>Item Name</th><th>Quantity</th><th>Description</th></tr>
+      </thead>
+      <tbody id="glasswareTable"></tbody>
+    </table>
+  </div>
+
+  <div class="category">
+    <h2>Fixeed Assets</h2>
+    <table class="item-table">
+      <thead>
+        <tr><th>Item Name</th><th>Quantity</th><th>Description</th></tr>
+      </thead>
+      <tbody id="fixedAssetTable"></tbody>
+    </table>
+  </div>
+</div>
+
+    <!-- Accountability -->
+    <div id="accountability" class="page">
+      <h1>Accountability</h1>
+      <h2>My Breakage Reports</h2>
+      <div id="studentBreakageList">
+        <p>Loading reports...</p> 
+      </div>
+      <hr>
+      <h2>My Borrowed Items</h2>
+      <div id="borrowedList">
+        </div>
+    </div>
+  </div>
+
+
+  <!-- Policy Agreement Modal -->
+  <div id="policyModal" style="
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+">
+  <div style="
+    background: rgba(0,43,22,0.97);
+    border: 1px solid rgba(255,215,0,0.25);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 620px;
+    max-height: 85vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  ">
+
+    <!-- Header -->
+    <div style="padding: 26px 32px 22px; border-bottom: 1px solid rgba(255,215,0,0.15); flex-shrink: 0;">
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <div style="width: 42px; height: 42px; background: rgba(255,215,0,0.12); border: 1px solid rgba(255,215,0,0.3); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <i class="fa-solid fa-shield-halved" style="color: #ffd700; font-size: 20px;"></i>
+        </div>
+        <div>
+          <h2 style="margin: 0; font-size: 20px; font-weight: 600; color: #ffd700;">Laboratory Policy Agreement</h2>
+          <p style="margin: 4px 0 0; font-size: 14px; color: rgba(255,255,255,0.45);">Please read and agree before accessing the system</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scrollable Body -->
+    <div style="padding: 24px 32px; overflow-y: auto; flex: 1; scrollbar-width: thin; scrollbar-color: rgba(255,215,0,0.3) transparent;">
+
+      <div style="background: rgba(255,215,0,0.06); border-left: 3px solid #ffd700; border-radius: 0 6px 6px 0; padding: 13px 18px; margin-bottom: 24px;">
+        <p style="margin: 0; font-size: 15px; color: rgba(255,255,255,0.75); line-height: 1.7;">
+          By clicking <strong style="color: #ffd700;">I Agree</strong>, you acknowledge that you have read, understood, and will comply with the following laboratory policies.
+        </p>
+      </div>
+
+      <!-- Section 1 -->
+      <div style="margin-bottom: 22px;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+          <div style="width: 24px; height: 24px; background: rgba(168,224,99,0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <span style="font-size: 12px; color: #a8e063; font-weight: 600;">1</span>
+          </div>
+          <h3 style="margin: 0; font-size: 15px; font-weight: 600; color: #a8e063;">General Laboratory Conduct</h3>
+        </div>
+        <ul style="margin: 0; padding-left: 30px; list-style: none;">
+          <li style="font-size: 14px; color: rgba(255,255,255,0.7); padding: 5px 0; line-height: 1.6; position: relative;"><span style="position: absolute; left: -16px; color: rgba(255,215,0,0.5); font-size: 11px; top: 8px;">▸</span>Food and drinks are strictly prohibited inside the laboratory.</li>
+          <li style="font-size: 14px; color: rgba(255,255,255,0.7); padding: 5px 0; line-height: 1.6; position: relative;"><span style="position: absolute; left: -16px; color: rgba(255,215,0,0.5); font-size: 11px; top: 8px;">▸</span>Students must wear appropriate Personal Protective Equipment (PPE) at all times.</li>
+          <li style="font-size: 14px; color: rgba(255,255,255,0.7); padding: 5px 0; line-height: 1.6; position: relative;"><span style="position: absolute; left: -16px; color: rgba(255,215,0,0.5); font-size: 11px; top: 8px;">▸</span>Chemicals must only be used as instructed by the assigned professor or lab technician.</li>
+          <li style="font-size: 14px; color: rgba(255,255,255,0.7); padding: 5px 0; line-height: 1.6; position: relative;"><span style="position: absolute; left: -16px; color: rgba(255,215,0,0.5); font-size: 11px; top: 8px;">▸</span>All spills, accidents, and breakages must be reported immediately.</li>
+        </ul>
+      </div>
+
+      <!-- Section 2 -->
+      <div style="margin-bottom: 22px;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+          <div style="width: 24px; height: 24px; background: rgba(168,224,99,0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <span style="font-size: 12px; color: #a8e063; font-weight: 600;">2</span>
+          </div>
+          <h3 style="margin: 0; font-size: 15px; font-weight: 600; color: #a8e063;">Borrowing of Laboratory Materials</h3>
+        </div>
+        <ul style="margin: 0; padding-left: 30px; list-style: none;">
+          <li style="font-size: 14px; color: rgba(255,255,255,0.7); padding: 5px 0; line-height: 1.6; position: relative;"><span style="position: absolute; left: -16px; color: rgba(255,215,0,0.5); font-size: 11px; top: 8px;">▸</span>Each group must designate a student monitor for every laboratory activity.</li>
+          <li style="font-size: 14px; color: rgba(255,255,255,0.7); padding: 5px 0; line-height: 1.6; position: relative;"><span style="position: absolute; left: -16px; color: rgba(255,215,0,0.5); font-size: 11px; top: 8px;">▸</span>Inspect borrowed items before signing the Borrower's Slip. Report existing defects immediately.</li>
+          <li style="font-size: 14px; color: rgba(255,255,255,0.7); padding: 5px 0; line-height: 1.6; position: relative;"><span style="position: absolute; left: -16px; color: rgba(255,215,0,0.5); font-size: 11px; top: 8px;">▸</span>All items must be returned clean and in good condition at least 30 minutes before the period ends.</li>
+        </ul>
+      </div>
+
+      <!-- Section 3 -->
+      <div style="margin-bottom: 22px;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+          <div style="width: 24px; height: 24px; background: rgba(168,224,99,0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <span style="font-size: 12px; color: #a8e063; font-weight: 600;">3</span>
+          </div>
+          <h3 style="margin: 0; font-size: 15px; font-weight: 600; color: #a8e063;">Loss, Damage, and Deficiencies</h3>
+        </div>
+        <ul style="margin: 0; padding-left: 30px; list-style: none;">
+          <li style="font-size: 14px; color: rgba(255,255,255,0.7); padding: 5px 0; line-height: 1.6; position: relative;"><span style="position: absolute; left: -16px; color: rgba(255,215,0,0.5); font-size: 11px; top: 8px;">▸</span>Any loss, breakage, or damage must be reported to the Laboratory Technician immediately.</li>
+          <li style="font-size: 14px; color: rgba(255,255,255,0.7); padding: 5px 0; line-height: 1.6; position: relative;"><span style="position: absolute; left: -16px; color: rgba(255,215,0,0.5); font-size: 11px; top: 8px;">▸</span>An incident report must be completed within 72 hours from the time of occurrence.</li>
+          <li style="font-size: 14px; color: rgba(255,255,255,0.7); padding: 5px 0; line-height: 1.6; position: relative;"><span style="position: absolute; left: -16px; color: rgba(255,215,0,0.5); font-size: 11px; top: 8px;">▸</span>Lab ID will be withheld until all obligations are properly settled.</li>
+        </ul>
+      </div>
+
+      <!-- Section 4 -->
+      <div style="margin-bottom: 8px;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+          <div style="width: 24px; height: 24px; background: rgba(168,224,99,0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <span style="font-size: 12px; color: #a8e063; font-weight: 600;">4</span>
+          </div>
+          <h3 style="margin: 0; font-size: 15px; font-weight: 600; color: #a8e063;">Data Privacy and Information Usage</h3>
+        </div>
+        <ul style="margin: 0; padding-left: 30px; list-style: none;">
+          <li style="font-size: 14px; color: rgba(255,255,255,0.7); padding: 5px 0; line-height: 1.6; position: relative;"><span style="position: absolute; left: -16px; color: rgba(255,215,0,0.5); font-size: 11px; top: 8px;">▸</span>Personal data is collected solely for lab identification and accountability purposes.</li>
+          <li style="font-size: 14px; color: rgba(255,255,255,0.7); padding: 5px 0; line-height: 1.6; position: relative;"><span style="position: absolute; left: -16px; color: rgba(255,215,0,0.5); font-size: 11px; top: 8px;">▸</span>Data is accessible only to authorized personnel — Lab Technician, Professors, and System Admin.</li>
+          <li style="font-size: 14px; color: rgba(255,255,255,0.7); padding: 5px 0; line-height: 1.6; position: relative;"><span style="position: absolute; left: -16px; color: rgba(255,215,0,0.5); font-size: 11px; top: 8px;">▸</span>Personal information is never sold or shared with third parties outside the institution.</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <!-- Footer Buttons -->
+    <div style="padding: 18px 32px; border-top: 1px solid rgba(255,215,0,0.15); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; background: rgba(0,20,10,0.5);">
+      <button onclick="logout()" style="background: transparent; border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.55); padding: 10px 24px; border-radius: 8px; font-size: 14px; min-width: unset; cursor: pointer;">Logout</button>
+      <button id="agreePolicyBtn" onclick="agreePolicy()" style="background: rgba(255,215,0,0.12); border: 1px solid rgba(255,215,0,0.5); color: #ffd700; padding: 10px 28px; border-radius: 8px; font-size: 15px; font-weight: 600; min-width: unset; cursor: pointer;">I Agree</button>
+    </div>
+
+  </div>
+</div>
+
+  <script src="student_dashboard.js"></script>
+</body>
+</html>

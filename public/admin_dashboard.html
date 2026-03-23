@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <meta charset="utf-8" />
+    <title>Admin Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="admin_dashboard.css" />
+    <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+  />
+  </head>
+  <body>
+    <div class="sidebar">
+      <button class="close-sidebar" onclick="toggleSidebar()">
+        <i class="fa-solid fa-xmark"></i>
+    </button>
+      <div class="sidebar-logo">
+        <i class="fas fa-flask logo-icon"></i>
+        <span>ChemLab</span>
+      </div>
+      <div class="profile">
+        <p id="adminName">Admin</p>
+      </div>
+      <ul>
+  <li>
+    <button onclick="showPage('home')">
+      <i class="fa-solid fa-house"></i> <span>Home</span>
+    </button>
+  </li>
+
+  <li>
+    <button onclick="showPage('inventory')">
+      <i class="fa-solid fa-boxes-stacked"></i> <span>Inventory</span>
+    </button>
+  </li>
+
+  <li>
+    <button onclick="showPage('borrowed')">
+      <i class="fa-solid fa-hand-holding"></i> <span>Material Borrowed</span>
+    </button>
+  </li>
+
+  <li>
+    <button onclick="showPage('accountability')">
+      <i class="fa-solid fa-file-circle-check"></i> <span>Student Accountability</span>
+    </button>
+  </li>
+
+  <li>
+    <button onclick="showPage('appointments')">
+      <i class="fa-solid fa-calendar-check"></i> <span>Appointments</span>
+    </button>
+  </li>
+
+  <li>
+    <button onclick="showPage('students')">
+      <i class="fa-solid fa-user-graduate"></i> <span>Student Accounts</span>
+    </button>
+  </li>
+
+  <li>
+    <button onclick="showPage('experiments')">
+      <i class="fa-solid fa-flask"></i> <span>Experiments</span>
+    </button>
+  </li>
+
+  <li id="adminManageBtn" style="display: none">
+    <button onclick="showPage('admins')">
+      <i class="fa-solid fa-user-shield"></i> <span>Manage Admins</span>
+    </button>
+  </li>
+
+  <li>
+    <button onclick="showPage('profile')">
+      <i class="fa-solid fa-user"></i> <span>My Profile</span>
+    </button>
+  </li>
+
+  <li>
+    <button onclick="logout()">
+      <i class="fa-solid fa-right-from-bracket"></i> <span>Logout</span>
+    </button>
+  </li>
+</ul>
+
+    </div>
+
+    <div class="main">
+      <button class="mobile-toggle" onclick="toggleSidebar()">
+        <i class="fa-solid fa-bars"></i>
+      </button>
+      <!-- GLOBAL SEARCH BAR -->
+      <div class="search-bar">
+        <input
+          type="text"
+          id="searchInput"
+          placeholder="Search..."
+          onkeyup="filterTable()"
+        />
+      </div>
+
+      <!-- HOME -->
+      <section id="home" class="page">
+        <h2>Dashboard</h2>
+
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <h3>Total Materials</h3>
+            <p id="totalMaterials">0</p>
+          </div>
+          <div class="stat-card">
+            <h3>Available Materials</h3>
+            <p id="availableMaterials">0</p>
+          </div>
+          <div class="stat-card">
+            <h3>Borrowed Today</h3>
+            <p id="borrowedToday">0</p>
+          </div>
+          <div class="stat-card">
+            <h3>Broken Reports</h3>
+            <p id="brokenReports">0</p>
+          </div>
+          <div class="stat-card">
+            <h3>Pending Students</h3>
+            <p id="pendingStudents">0</p>
+          </div>
+          <div class="stat-card">
+            <h3>Low Stock Alerts</h3>
+            <p id="lowStock">0</p>
+          </div>
+        </div>
+
+        <!-- Notifications & Reminders -->
+        <div class="dashboard-card full-width">
+          <h3>Notifications & Reminders</h3>
+
+          <div class="notif-grid">
+          <div class="notif-section">
+            <h4>Urgent Notifications</h4>
+            <ul id="urgentNotifications" class="notif-list"></ul>
+          </div>
+
+          <div class="notif-section">
+            <h4>Upcoming Weekly Reminders</h4>
+            <ul id="todayReminders" class="notif-list"></ul>
+          </div>
+
+          <div class="notif-section">
+            <h4>Pending Approvals</h4>
+            <ul id="pendingApprovals" class="notif-list"></ul>
+          </div>
+        </div>
+      </div>
+
+        <!-- Recent Activity -->
+        <div class="dashboard-card full-width">
+          <h3>Recent Activity</h3>
+          <div class="activity-grid">
+          <div class="activity-block">
+            <h4>Recent Borrowed Materials</h4>
+            <ul id="recentBorrowedMaterials" class="activity-list"></ul>
+          </div>
+          <div class="activity-block">
+            <h4>Recent Broken/Damage Reports</h4>
+            <ul id="recentBrokenReports" class="activity-list"></ul>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- INVENTORY -->
+      <section id="inventory" class="page hidden">
+    <h2>Inventory</h2>
+
+    <div class="inventory-controls" style="display: flex; gap: 15px; margin-bottom: 20px;">
+        <select id="categoryFilter" onchange="filterInventory()">
+            <option value="all">Filter by Category (Show All)</option>
+            <option value="equipment">Equipment</option>
+            <option value="chemical">Chemicals</option>
+            <option value="glassware">Glassware</option>
+            <option value="fixedAsset">Fixed Assets</option>
+        </select>
+        
+        <input 
+            type="text" 
+            id="inventorySearchInput" 
+            onkeyup="filterInventory()" 
+            placeholder="Search item name, code, or description..." 
+            style="flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px;"
+        />
+
+        <!-- export all button -->
+         <button id="exportFullInventory" style="background-color: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
+        Export Full Inventory
+        </button>
+      
+    </div>
+
+    <div id="inventoryListContainer">
+        
+        <div id="equipmentInventory" class="inventory-category-block" data-category="equipment">
+            <h3>Equipment</h3>
+            <button onclick="openAddItemModal('equipment')">+ Add Equipment</button>
+            <button id="exportEquipment" style="background-color: #28a745; color: white;">Export Data</button>
+            <!-- export button -->
+      
+            <table id="equipmentTable">
+                <thead>
+                    <tr>
+                        <th>Date Received</th>
+                        <th>Item Name</th>
+                        <th>Specification/s</th>
+                        <th>Location</th>
+                        <th>Total Qty</th>
+                        <th>Remaining</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <div id="chemicalInventory" class="inventory-category-block" data-category="chemical">
+            <h3>Chemicals</h3>
+            <button onclick="openAddItemModal('chemical')">+ Add Chemical</button>
+            <button id="exportChemicals" style="background-color: #28a745; color: white;">Export Data</button>
+            <!-- export button -->
+            <table id="chemicalsTable">
+                <thead>
+                    <tr>
+                        <th>Barcode</th>
+                        <th>Location</th>
+                        <th>Date In</th>
+                        <th>Chemical Name</th>
+                        <th>CAS #</th>
+                        <th>Container Size</th>
+                        <th>Status</th>
+                        <th>Units</th>
+                        <th>State</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <div id="glasswareInventory" class="inventory-category-block" data-category="glassware">
+            <h3>Glassware</h3>
+            <button onclick="openAddItemModal('glassware')">+ Add Glassware</button>
+            <button id="exportGlassware" style="background-color: #28a745; color: white;">Export Data</button>
+            <!-- export button -->
+            <table id="glasswareTable">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Description</th>
+                        <th>Quantity</th>
+                        <th>Remaining Quantity</th>
+                        <th>Remarks</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <div id="fixedAssetInventory" class="inventory-category-block" data-category="fixedAsset">
+            <h3>Fixed Assets</h3>
+            <button onclick="openAddItemModal('fixedAsset')">+ Add Fixed Asset</button>
+            <button id="exportFixedAssets" style="background-color: #28a745; color: white;">Export Data</button>
+            <!-- export button -->
+            <table id="fixedAssetTable">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Property Code</th>
+                        <th>Item Name</th>
+                        <th>Description</th>
+                        <th>Serial Number</th>
+                        <th>Location</th>
+                        <th>nFEA</th>
+                        <th>Quantity</th>
+                        <th>Cost</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                    <tbody></tbody>
+                </table>
+        </div>
+        
+    </div>
+</section>
+
+      <!-- ADD ITEM MODAL -->
+      <div id="addItemModal" class="hidden modal">
+        <div class="add-modal-content">
+          <h3 id="modalTitle">Add Item</h3>
+          <form id="addItemForm">
+            <input type="hidden" id="itemCategory" />
+
+            <!-- Optional fields for specific types -->
+            <div id="additionalFields"></div>
+
+            <div id="addItemError" style="display:none; margin: 12px 0; padding: 10px 14px; border-radius: 8px; font-size: 0.9rem; background: rgba(255,107,107,0.12); border: 1px solid rgba(255,107,107,0.4); color: #ff6b6b;"></div>
+
+            <div class="modal-actions">
+              <button type="button" onclick="closeAddItemModal()">
+                Cancel
+              </button>
+              <button type="submit">Save</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!--EDIT ITEM MODAL-->
+      <div id="inventoryModal" class="modal" style="display:none;">
+        <div class="modal-form">
+          <h3>Edit Inventory Item</h3>
+          
+          <form id="inventoryEditForm">
+            <input type="hidden" id="editItemId">
+            <input type="hidden" id="editItemCategory">
+            
+            <div id="inventoryModalFields" style="max-height: 400px; overflow-y: auto; padding-right: 5px;">
+            </div>
+            
+            <div class="modal-actions">
+              <button type="button" onclick="closeInventoryModal()">Cancel</button>
+              <button type="submit">Save Changes</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- BORROWED -->
+      <section id="borrowed" class="page hidden">
+        <h2>Materials Borrowed</h2>
+
+        <div class="borrowed-controls">
+    <label for="borrowedSort">Sort by Date:</label>
+    <select id="borrowedSort" class="large-filter" onchange="sortBorrowedTable()">
+        <option value="newest">Newest First</option>
+        <option value="oldest">Oldest First</option>
+    </select>
+</div>
+
+
+        <table id="borrowedTable">
+          <thead>
+            <tr>
+              <th>Student</th>
+              <th>Material</th>
+              <th>Date Borrowed</th>
+              <th>Status</th>
+              <th>Actions</th>
+              <!-- ✅ NEW COLUMN -->
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <!-- ACCOUNTABILITY -->
+      <!-- ACCOUNTABILITY / BREAKAGE REPORTS -->
+      <section id="accountability" class="page hidden">
+        <h2>Student Accountability (Breakage Reports)</h2>
+        <button onclick="openAddBreakageModal()">+ Add Report</button>
+
+        <!-- TABS -->
+        <div class="accountability-tabs">
+            <button class="tab-btn active" onclick="switchAccountabilityTab('broken')">
+                <i class="fa-solid fa-triangle-exclamation"></i> Broken Reports
+            </button>
+            <button class="tab-btn" onclick="switchAccountabilityTab('resolved')">
+                <i class="fa-solid fa-circle-check"></i> Resolved
+            </button>
+        </div>
+
+        <div class="filter-container">
+            <label for="accountabilitySort">Sort by Date:</label>
+            <select id="accountabilitySort" class="large-filter" onchange="sortData('accountability')"> 
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+            </select>
+        </div>
+
+        <div id="tab-broken">
+            <table id="breakageTable">
+                <thead>
+                    <tr>
+                        <th>Student (labID)</th>
+                        <th>Item</th>
+                        <th>Quantity</th>
+                        <th>Violation</th>
+                        <th>Date</th>
+                        <th>Action Taken</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <div id="tab-resolved" class="hidden">
+              <table id="resolvedTable">
+                  <thead>
+                      <tr>
+                          <th>Student (labID)</th>
+                          <th>Item</th>
+                          <th>Quantity</th>
+                          <th>Violation</th>
+                          <th>Date</th>
+                          <th>Action Taken</th>
+                          <th>Status</th>
+                          <th>Actions</th>
+                      </tr>
+                  </thead>
+                  <tbody></tbody>
+              </table>
+          </div>
+      </section>
+
+      <!-- ADD / EDIT MODAL -->
+      <div id="breakageModal" class="modal hidden">
+        <div class="modal-form">
+          <h3 id="breakageModalTitle">Add Breakage Report</h3>
+          <form id="breakageForm">
+            <input type="hidden" id="breakageId" />
+            <input type="hidden" id="breakageItemNameHidden" />
+            
+            <label>Student (Lab ID):</label>
+            <select id="breakageLabID" required>
+              <option value="">-- Select Student Lab ID --</option>
+            </select>
+            
+            <label>Item Category:</label>
+            <select id="breakageCategory" required onchange="loadBreakageItems(this.value)">
+              <option value="">-- Select Category --</option>
+              <option value="equipment">Equipment</option>
+              <option value="glassware">Glassware</option>
+              <option value="chemical">Chemical</option>
+            </select>
+            
+            <label>Broken/Lost Item:</label>
+            <select id="breakageItemId" required>
+              <option value="">-- Select Item --</option>
+            </select>
+            
+            <label>Quantity Broken/Lost:</label>
+            <input type="number" id="breakageQuantity" value="1" min="1" required />
+            
+            <label>Violation:</label>
+            <input type="text" id="breakageViolation" required />
+            
+            <label>Action Taken (Remarks):</label>
+            <textarea id="breakageRemarks"></textarea>
+
+            <input type="hidden" id="breakageCategoryHidden" />
+            <input type="hidden" id="breakageItemIdHidden" />
+            
+            <div class="modal-actions">
+              <button type="button" onclick="closeBreakageModal()">
+                Cancel
+              </button>
+              <button type="submit">Save</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- APPOINTMENTS -->
+      <section id="appointments" class="page hidden">
+        <h2>Appointments & Guest Requests</h2>
+  <button onclick="openAppointmentModal()">+ Add Manual Appointment</button>
+
+  <div class="filter-container">
+    <label for="appointmentsSort">Sort by Date:</label>
+    <select id="appointmentsSort" class="large-filter" onchange="sortData('appointments')"> 
+        <option value="newest">Newest First</option>
+        <option value="oldest">Oldest First</option>
+    </select>
+</div>
+
+
+  <h3>Student & Manual Appointments</h3>
+  <table id="appointmentsTable2">
+    <thead>
+      <tr>
+        <th>Student</th>
+        <th>CYS</th>
+        <th>Purpose</th>
+        <th>Materials</th>
+        <th>Date & Time</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <hr style="margin: 40px 0; border: 1px solid #eee;">
+
+  <h3>Guest Online Requests</h3>
+  <table id="guestRequestsTable">
+    <thead>
+      <tr>
+        <th>Guest Name</th>
+        <th>Purpose</th>
+        <th>Items Requested</th>
+        <th>Date & Time Slot</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+      </section>
+
+      <div id="appointmentModal" class="modal hidden">
+  <div class="modal-form">
+    <h3>Add Manual Appointment</h3>
+    <form id="addAppointmentForm">
+      <label for="appStudentName">Student Name:</label>
+      <input type="text" id="appStudentName" name="studentName" required />
+
+      <label for="appCYS">CYS (Course, Year, Section):</label>
+      <input type="text" id="appCYS" name="cys" required />
+
+      <label for="appPurpose">Purpose of Appointment:</label>
+      <input type="text" id="appPurpose" name="purpose" required />
+
+      <div class="materials-selection-container" style="border: 1px solid #eee; padding: 10px; margin-bottom: 15px; border-radius: 5px;">
+        <label><strong>Select Materials:</strong></label>
+        <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+          <select id="adminCategorySelect" style="flex: 1;">
+            <option value="">Category</option>
+            <option value="equipment">Equipment</option>
+            <option value="glassware">Glassware</option>
+            <option value="chemical">Chemical</option>
+          </select>
+          <select id="adminItemSelect" style="flex: 2;">
+            <option value="">-- Select Item --</option>
+          </select>
+        </div>
+        <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+          <input type="number" id="adminItemQty" placeholder="Qty" min="1" value="1" style="width: 70px;">
+          <button type="button" id="adminAddItemBtn" style="background-color: #28a745; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 3px;">+ Add Item</button>
+        </div>
+        <ul id="adminSelectedItemsList" style="list-style: none; padding: 0; background: #004620; border-radius: 4px; font-size: 0.9em;">
+          <li style="padding: 5px; color: #888;">No items added yet.</li>
+        </ul>
+        <input type="hidden" id="appItemsRequestedJSON" name="itemsRequested">
+      </div>
+
+      <label for="appDate">Date & Time:</label>
+      <input type="datetime-local" id="appDate" name="date" required />
+
+      <label for="appStatus">Status:</label>
+      <select id="appStatus" name="status">
+        <option value="pending" selected>Pending</option>
+        <option value="approved">Approved</option>
+        <option value="accepted">Accepted (Deduct Inventory)</option>
+      </select>
+
+      <div class="modal-actions">
+        <button type="button" onclick="closeAppointmentModal()">Cancel</button>
+        <button type="submit">Save Appointment</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="rejectionModal" class="modal hidden">
+    <div class="modal-form">
+        <h3>Reject Appointment</h3>
+        <form id="rejectionForm">
+            <input type="hidden" id="rejectId">
+            
+            <label for="rejectionReasonInput">Reason for rejection:</label>
+            <textarea id="rejectionReasonInput" rows="3" required placeholder="Enter reason..."></textarea>
+
+            <div class="modal-actions">
+                <button type="button" onclick="document.getElementById('rejectionModal').classList.add('hidden')">
+                    Cancel
+                </button>
+                <button type="submit">Confirm Rejection</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="rejectionModal" class="modal hidden">
+    <div class="modal-form">
+        <h3>Reject Appointment</h3>
+        <form id="rejectionForm">
+            <input type="hidden" id="rejectId">
+            
+            <label for="rejectionReasonInput">Reason for rejection:</label>
+            <textarea id="rejectionReasonInput" rows="3" required placeholder="Enter reason..."></textarea>
+
+            <div class="modal-actions">
+                <button type="button" onclick="document.getElementById('rejectionModal').classList.add('hidden')">
+                    Cancel
+                </button>
+                <button type="submit">Confirm Rejection</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+      <!-- STUDENT ACCOUNTS -->
+      <section id="students" class="page hidden">
+        <h2>Student Accounts (Pending)</h2>
+
+         <div class="accountability-tabs">
+              <button class="tab-btn active" id="pendingTabBtn" onclick="switchStudentTab('pending', event)">
+                  <i class="fa-solid fa-clock"></i> Pending
+              </button>
+              <button class="tab-btn" id="rejectedTabBtn" onclick="switchStudentTab('rejected', event)">
+                  <i class="fa-solid fa-ban"></i> Rejected
+              </button>
+          </div>
+
+        <div class="filter-container">
+            <label for="studentAccountsSort">Sort by Date:</label>
+            <select id="studentAccountsSort" class="large-filter" onchange="sortData('students')"> 
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+            </select>
+        </div>
+
+
+        <!-- PENDING TAB -->
+    <div id="tab-pending-students">
+        <div class="inventory-table-wrapper">
+            <table id="studentsTable">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Course/Year/Section</th>
+                        <th>Professor</th>
+                        <th>Class Schedule</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- REJECTED TAB -->
+    <div id="tab-rejected-students" class="hidden">
+        <div class="inventory-table-wrapper">
+            <table id="rejectedStudentsTable">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Course/Year/Section</th>
+                        <th>Professor</th>
+                        <th>Class Schedule</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+        <h2>Active Student Accounts </h2>
+        <table id="activeStudentsTable">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Lab ID</th>
+              <th>Course/Year/Section</th>
+              <th>Professor</th>
+              <th>Class Schedule</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <div id="labIdModal" class="modal" style="display:none;">
+      <div class="modal-form">
+        <h3 id="labIdModalTitle">Assign Physical Lab ID</h3>
+        <p style="font-size: 14px; color: #666; margin-bottom: 20px;">
+            Please enter the unique ID number found on the student's physical card.
+        </p>
+        
+        <form id="labIdForm">
+            <input type="hidden" id="assignStudentId">
+            
+            <label>Student Name</label>
+            <input type="text" id="displayStudentName" readonly style="background-color: #f9f9f9; color: #555;">
+
+            <label for="labIDInput">Lab ID Number</label>
+            <input type="text" id="labIDInput" placeholder="e.g. CL-ooxxxx" required>
+
+            <div class="modal-actions">
+                <button type="button" onclick="closeLabIdModal()">Cancel</button>
+                <button type="submit">Confirm & Activate</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="editLabIdModal" class="modal" style="display:none;">
+    <div class="modal-form">
+        <h3 id="editLabIdModalTitle">Edit Lab ID</h3>
+        <p style="font-size: 14px; color: #666; margin-bottom: 20px;">
+            Please enter the new ID number found on the student's physical card.
+        </p>
+        
+        <form id="editLabIdForm">
+            <input type="hidden" id="editStudentId">
+            
+            <label>Student Name</label>
+            <input type="text" id="editDisplayStudentName" readonly style="background-color: #f9f9f9; color: #555;">
+
+            <label for="editIDInput">New Lab ID Number</label>
+            <input type="text" id="editIDInput" placeholder="e.g. CL-ooxxxx" required>
+
+            <div class="modal-actions">
+                <button type="button" onclick="closeEditLabIdModal()">Cancel</button>
+                <button type="submit">Confirm</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- EDIT REJECTED STUDENT MODAL -->
+<div id="editStudentModal" class="modal hidden">
+    <div class="modal-form">
+        <h3>Edit Student Details</h3>
+        <form id="editStudentForm">
+            <input type="hidden" id="editStudentModalId">
+
+            <label>Full Name:</label>
+            <input type="text" id="editStudentFullName" required>
+
+            <label>Email:</label>
+            <input type="email" id="editStudentEmail" required>
+            <small id="editStudentEmailError" style="display:none; color:#ff6b6b; font-size:0.8rem; margin-top:-10px; margin-bottom:8px;"></small>
+
+            <label>Course/Year/Section:</label>
+            <input type="text" id="editStudentCYS" required>
+
+            <label>Professor:</label>
+            <input type="text" id="editStudentProfessor" required>
+
+            <label>Class Schedule:</label>
+            <input type="text" id="editStudentSchedule" required>
+
+            <label>Status:</label>
+            <select id="editStudentStatus" required>
+                <option value="blocked">Rejected</option>
+                <option value="pending">Move Back to Pending</option>
+            </select>
+
+            <div class="modal-actions">
+                <button type="button" onclick="closeEditStudentModal()">Cancel</button>
+                <button type="submit">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+      <!-- EXPERIMENTS -->
+      <section id="experiments" class="page hidden">
+        <h2>Experiments</h2>
+        <button onclick="openExperimentModal()">+ Add Experiment</button>
+
+        <table id="experimentsTable">
+          <thead>
+            <tr>
+              <th>Experiment Name</th>
+              <th>Course</th>
+              <th>Description</th>
+              <th>Materials Needed</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+        <!-- Add Material Modal -->
+        <div id="materialForm" class="modal hidden">
+          <div class="modal-form">
+            <h3>Add Material to Experiment</h3>
+            <form id="addMaterialForm">
+              <input type="hidden" id="expIdHidden" />
+
+              <!-- Category -->
+              <label for="matCategory">Category:</label>
+              <select
+                id="matCategory"
+                required
+                onchange="loadItemsByCategory(this.value)"
+              >
+                <option value="">Select Category</option>
+                <option value="equipment">Equipment</option>
+                <option value="glassware">Glassware</option>
+                <option value="chemical">Chemical</option>
+              </select>
+
+              <!-- Item -->
+              <label for="matItem">Item:</label>
+              <select id="matItem" required>
+                <option value="">Select Item</option>
+              </select>
+
+              <!-- Specs -->
+              <label for="matSpecs">Specs:</label>
+              <input type="text" id="matSpecs" readonly />
+
+              <div class="modal-actions">
+                <button
+                  type="button"
+                  onclick="document.getElementById('materialForm').classList.add('hidden'); document.getElementById('materialError') && (document.getElementById('materialError').style.display='none', document.getElementById('materialError').innerText='');"
+                >
+                  Cancel
+                </button>
+                <button type="submit">Add Material</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- ADD EXPERIMENT MODAL -->
+        <div id="experimentModal" class="modal hidden">
+  <div class="modal-form">
+    <h3 id="experimentModalTitle">Add Experiment</h3> 
+    <form id="addExperimentForm">
+      <input type="hidden" id="editExpId" /> 
+
+      <label for="expName">Name:</label>
+      <input id="expName" required />
+
+      <label for="expCourse">Course:</label>
+      <input id="expCourse" />
+
+      <label for="expDesc">Description:</label>
+      <textarea id="expDesc"></textarea>
+
+      <div class="modal-actions">
+        <button type="button" onclick="closeExperimentModal()">
+          Cancel
+        </button>
+        <button type="submit">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+      </section>
+
+      
+<!-- MANAGE ADMINS -->
+      <section id="admins" class="page hidden">
+        <h2>Manage Admins</h2>
+        <button onclick="document.getElementById('adminModal').classList.remove('hidden')">+ Add Admin</button>
+        <div id="adminModal" class="modal hidden">
+  <div class="modal-form">
+      <h3>Add New Admin</h3>
+      
+      <label for="newAdminName">Admin Name:</label>
+      <input type="text" id="newAdminName" placeholder="Enter full name">
+
+      <label for="newAdminEmail">Email:</label>
+      <input type="email" id="newAdminEmail" placeholder="admin@chemlab.edu.ph">
+
+      <label for="newAdminPassword">Password:</label>
+<div class="password-wrapper" style="position: relative; display: flex; align-items: center; margin-bottom: 15px;">
+    <input type="password" id="newAdminPassword" placeholder="Set password" style="width: 100%; padding-right: 40px;">
+    <i class="fa-solid fa-eye" id="toggleAddAdminPass" onclick="toggleAddAdminPassword()" 
+       style="position: absolute; right: 10px; cursor: pointer; color: #888;"></i>
+</div>
+
+      <label for="newAdminRole">Role:</label>
+      <select id="newAdminRole">
+          <option value="admin">Admin</option>
+          <option value="superadmin">Super Admin</option>
+      </select>
+
+      <div class="modal-actions">
+          <button type="button" onclick="
+              document.getElementById('adminModal').classList.add('hidden');
+              document.getElementById('addAdminError') && (document.getElementById('addAdminError').style.display='none', document.getElementById('addAdminError').innerText='');
+          ">Cancel</button>
+          <button type="button" onclick="addAdmin()">Add Admin</button>
+      </div>
+  </div>
+</div>
+
+
+        <table id="adminsTable">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <div id="adminEditModal" class="modal" style="display:none;">
+    <div class="modal-form">
+        <h3>Edit Admin Account</h3>
+        <form id="adminEditForm">
+            <input type="hidden" id="editAdminId">
+            
+            <label for="editAdminName">Full Name</label>
+            <input type="text" id="editAdminName" required>
+
+            <label for="editAdminEmail">Email Address</label>
+            <input type="email" id="editAdminEmail" required>
+
+            <label for="editAdminRole">Role</label>
+            <select id="editAdminRole">
+                <option value="admin">Admin</option>
+                <option value="superadmin">Superadmin</option>
+            </select>
+
+            <label for="editAdminPassword">New Password (Optional)</label>
+            <div class="password-wrapper">
+                <input type="password" id="editAdminPassword" placeholder="Leave blank to keep current">
+                <i class="fas fa-eye" onclick="toggleEditAdminPassword()"></i>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" onclick="closeAdminModal()">Cancel</button>
+                <button type="submit">Update Admin</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+      <section id="profile" class="page hidden">
+        <h2>My Profile</h2>
+
+        <div id="profileViewSection" class="card profile-card">
+            <h3>Admin Information</h3>
+            <p><b>Name:</b> <span id="viewAdminName"></span></p>
+            <p><b>Email:</b> <span id="viewAdminEmail"></span></p>
+            <p><b>Role:</b> <span id="viewAdminRole"></span></p>
+            
+            <button id="editButton" onclick="toggleAdminEditMode(true)" style="margin-top: 15px;">Edit Profile</button>
+            <p id="viewMessage" style="color: grey; margin-top: 10px;"></p>
+        </div>
+
+        <form id="adminProfileUpdateForm" onsubmit="handleAdminProfileUpdate(event)" style="display: none;">
+            <div class="card profile-card">
+                <h3>Edit Information</h3>
+                
+                <label for="profileAdminName">Name:</label>
+                <input type="text" id="profileAdminName" name="name" required>
+                
+                <label for="profileAdminEmail">Email:</label>
+                <input type="email" id="profileAdminEmail" name="email" required>
+
+                <div style="margin-top: 20px;">
+                <h3>Change Password</h3>
+
+                <div class="password-field">
+                <label for="currentAdminPassword">Current Password:</label>
+                <input type="password" id="currentAdminPassword" name="currentPassword"> 
+            </div>
+
+                <div class="password-field">
+                <label for="newAdminPassword">New Password:</label>
+                <input type="password" id="newAdminPassword" name="newPassword">
+            </div>
+            </div>
+
+
+                <div class="modal-actions" style="margin-top: 20px;">
+                    <button type="submit">Save Changes</button>
+                    <button type="button" onclick="toggleAdminEditMode(false)">Cancel</button>
+                </div>
+                <p id="profileMessage" style="font-weight: bold;"></p>
+            </div>
+        </form>
+    </section>
+    </div>
+    <script>
+      function openAddItemModal(category) {
+        const errDiv = document.getElementById("addItemError");
+        if (errDiv) { errDiv.style.display = "none"; errDiv.innerText = ""; }
+        document.getElementById("itemCategory").value = category;
+
+        const modalTitle = document.getElementById("modalTitle");
+        modalTitle.textContent = `Add ${capitalizeFirstLetter(category)}`;
+
+        const additionalFields = document.getElementById("additionalFields");
+        additionalFields.innerHTML = "";
+
+        // Generate fields based on category
+        if (category === "equipment") {
+          additionalFields.innerHTML = `
+      <label for="itemNameField">Item Name:</label>
+      <input type="text" id="itemNameField">
+
+      <label for="itemDate">Date Received:</label>
+      <input type="date" id="itemDate">
+
+      <label for="itemSpecification">Item Specification/s:</label>
+      <input type="text" id="itemSpecification">
+
+      <label for="itemLocation">Location:</label>
+      <input type="text" id="itemLocation">
+
+      <label for="itemQuantityField">Quantity:</label>
+      <input type="number" id="itemQuantityField" min="1">
+    `;
+        } else if (category === "chemical") {
+      additionalFields.innerHTML = `
+        <label for="itemBarcode">Barcode:</label>
+        <input type="text" id="itemBarcode" onkeydown="return event.key !== 'Enter'" placeholder="Leave blank to auto-generate">
+        <small id="barcodeMsg" style="color:#ff6b6b; display:none; font-size:0.8rem;"></small>
+
+        <label for="itemLocation">Location: <span style="color:#ff6b6b;">*</span></label>
+        <input type="text" id="itemLocation" required placeholder="e.g. CC-34">
+        <small id="locationMsg" style="color:#ff6b6b; display:none; font-size:0.8rem;">This field is required.</small>
+
+        <label for="itemDateIn">Date In: <span style="color:#ff6b6b;">*</span></label>
+        <input type="date" id="itemDateIn" required>
+        <small id="dateInMsg" style="color:#ff6b6b; display:none; font-size:0.8rem;">This field is required.</small>
+
+        <label for="itemChemicalName">Chemical Name: <span style="color:#ff6b6b;">*</span></label>
+        <input type="text" id="itemChemicalName" required placeholder="e.g. Sulfuric Acid">
+        <small id="chemNameMsg" style="color:#ff6b6b; display:none; font-size:0.8rem;">This field is required.</small>
+
+        <label for="itemCAS">CAS #: <span style="color:#ff6b6b;">*</span></label>
+        <input type="text" id="itemCAS" required placeholder="e.g. 7664-93-9">
+        <small id="casMsg" style="color:#ff6b6b; display:none; font-size:0.8rem;">This field is required.</small>
+
+        <label for="itemContainerSize">Container Size: <span style="color:#ff6b6b;">*</span></label>
+        <input type="text" id="itemContainerSize" required placeholder="e.g. 500">
+        <small id="containerMsg" style="color:#ff6b6b; display:none; font-size:0.8rem;">This field is required.</small>
+
+        <label for="itemStatus">Status: <span style="color:#ff6b6b;">*</span></label>
+        <select id="itemStatus" required>
+          <option value="Available" selected>Available</option>
+          <option value="Consumed">Consumed</option>
+        </select>
+
+        <label for="itemUnits">Units: <span style="color:#ff6b6b;">*</span></label>
+        <input type="text" id="itemUnits" required placeholder="e.g. mL, g, L">
+        <small id="unitsMsg" style="color:#ff6b6b; display:none; font-size:0.8rem;">Units are required and must contain letters only (no numbers or symbols).</small>
+
+        <label for="itemState">State: <span style="color:#ff6b6b;">*</span></label>
+        <input type="text" id="itemState" required placeholder="e.g. liquid, solid, gas">
+        <small id="stateMsg" style="color:#ff6b6b; display:none; font-size:0.8rem;">This field is required.</small>
+      `;
+        } else if (category === "glassware") {
+          additionalFields.innerHTML = `
+      <label for="itemNameField">Item Name:</label>
+      <input type="text" id="itemNameField">
+
+      <label for="itemDescription">Description:</label>
+      <input type="text" id="itemDescription">
+
+      <label for="itemQuantityField">Quantity:</label>
+      <input type="number" id="itemQuantityField" min="1">
+
+      <label for="itemRemarks">Remarks:</label>
+      <input type="text" id="itemRemarks">
+    `;
+        } else if (category === "fixedAsset") {
+          additionalFields.innerHTML = `
+      <label for="itemDate">Date:</label>
+      <input type="date" id="itemDate">
+
+      <label for="itemPropertyCode">Property Code:</label>
+      <input type="text" id="itemPropertyCode">
+
+      <label for="itemNameField">Item Name:</label>
+      <input type="text" id="itemNameField">
+
+      <label for="itemDescription">Description:</label>
+      <input type="text" id="itemDescription">
+
+      <label for="itemSerialNumber">Serial Number:</label>
+      <input type="text" id="itemSerialNumber">
+
+      <label for="itemLocation">Location:</label>
+      <input type="text" id="itemLocation">
+
+      <label for="itemNFEA">nFEA:</label>
+      <input type="text" id="itemNFEA">
+
+      <label for="itemQuantityField">Quantity:</label>
+      <input type="number" id="itemQuantityField" min="1">
+
+      <label for="itemCost">Cost:</label>
+      <input type="number" id="itemCost" step="0.01">
+
+      <label for="itemStatus">Status:</label>
+      <input type="text" id="itemStatus">
+    `;
+        }
+
+        document.getElementById("addItemModal").classList.remove("hidden");
+      }
+
+      function closeAddItemModal() {
+        document.getElementById("addItemModal").classList.add("hidden");
+        document.querySelectorAll("#additionalFields small").forEach(el => {
+          el.style.display = "none";
+          el.innerText = "";
+        });
+        document.getElementById("addItemError").style.display = "none";
+        document.getElementById("addItemError").innerText = "";
+      }
+
+      function capitalizeFirstLetter(str) {
+        return str.charAt(0).toUpperCase() + str.slice(1);
+      }
+
+      // Handle form submission
+      document
+        .getElementById("addItemForm")
+        .addEventListener("submit", async function (e) {
+          e.preventDefault();
+
+          const category = document.getElementById("itemCategory").value;
+          let itemData = { category };
+
+          if (category === "equipment") {
+            itemData.itemName = document.getElementById("itemNameField").value;
+            itemData.dateReceived = document.getElementById("itemDate").value;
+            itemData.specification =
+              document.getElementById("itemSpecification").value;
+            itemData.location = document.getElementById("itemLocation").value;
+            itemData.quantity =
+              document.getElementById("itemQuantityField").value;
+          } else if (category === "chemical") {
+            itemData.barcode       = document.getElementById("itemBarcode").value.trim();
+            itemData.location      = document.getElementById("itemLocation").value.trim();
+            itemData.dateIn        = document.getElementById("itemDateIn").value.trim();
+            itemData.chemicalName  = document.getElementById("itemChemicalName").value.trim();
+            itemData.casNumber     = document.getElementById("itemCAS").value.trim();
+            itemData.containerSize = document.getElementById("itemContainerSize").value.trim();
+            itemData.units         = document.getElementById("itemUnits").value.trim();
+            itemData.state         = document.getElementById("itemState").value.trim();
+            itemData.status        = document.getElementById("itemStatus").value;
+
+            // --- HIDE ALL INLINE MESSAGES FIRST ---
+            ["barcodeMsg","locationMsg","dateInMsg","chemNameMsg","casMsg","containerMsg","unitsMsg","stateMsg"].forEach(id => {
+              const el = document.getElementById(id);
+              if (el) el.style.display = "none";
+            });
+
+            // --- VALIDATE REQUIRED FIELDS ---
+            let hasError = false;
+
+            const requiredFields = [
+              { value: itemData.location,      msgId: "locationMsg",  msg: "Location is required." },
+              { value: itemData.dateIn,        msgId: "dateInMsg",    msg: "Date In is required." },
+              { value: itemData.chemicalName,  msgId: "chemNameMsg",  msg: "Chemical Name is required." },
+              { value: itemData.casNumber,     msgId: "casMsg",       msg: "CAS # is required." },
+              { value: itemData.containerSize, msgId: "containerMsg", msg: "Container Size is required." },
+              { value: itemData.state,         msgId: "stateMsg",     msg: "State is required." },
+            ];
+
+            requiredFields.forEach(field => {
+              if (!field.value) {
+                const el = document.getElementById(field.msgId);
+                if (el) { el.innerText = field.msg; el.style.display = "block"; }
+                hasError = true;
+              }
+            });
+
+            // --- VALIDATE UNITS (required + letters only) ---
+            if (!itemData.units) {
+              const el = document.getElementById("unitsMsg");
+              if (el) { el.innerText = "Units are required."; el.style.display = "block"; }
+              hasError = true;
+            } else if (!/^[a-zA-Z]+$/.test(itemData.units)) {
+              const el = document.getElementById("unitsMsg");
+              if (el) { el.innerText = "Units must contain letters only (no numbers or symbols)."; el.style.display = "block"; }
+              hasError = true;
+            }
+
+            if (hasError) return; // Stop submission, show inline errors
+          } else if (category === "glassware") {
+            itemData.itemName = document.getElementById("itemNameField").value;
+            itemData.description =
+              document.getElementById("itemDescription").value;
+            itemData.quantity =
+              document.getElementById("itemQuantityField").value;
+            itemData.remarks = document.getElementById("itemRemarks").value;
+          } else if (category === "fixedAsset") {
+            itemData.dateReceived = document.getElementById("itemDate").value;
+            itemData.propertyCode =
+              document.getElementById("itemPropertyCode").value;
+            itemData.itemName = document.getElementById("itemNameField").value;
+            itemData.description =
+              document.getElementById("itemDescription").value;
+            itemData.serialNumber =
+              document.getElementById("itemSerialNumber").value;
+            itemData.location = document.getElementById("itemLocation").value;
+            itemData.nFEA = document.getElementById("itemNFEA").value;
+            itemData.quantity =
+              document.getElementById("itemQuantityField").value;
+            itemData.cost = document.getElementById("itemCost").value;
+            itemData.status = document.getElementById("itemStatus").value;
+          }
+
+          let endpoint = "";
+          if (category === "equipment")
+            endpoint = `${API_BASE}/admin/equipment`;
+          else if (category === "chemical")
+            endpoint = `${API_BASE}/admin/chemicals`;
+          else if (category === "glassware")
+            endpoint = `${API_BASE}/admin/glassware`;
+          else if (category === "fixedAsset")
+            endpoint = `${API_BASE}/admin/fixed-assets`;
+
+          try {
+            const token = localStorage.getItem("adminToken");
+            const res = await fetch(endpoint, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify(itemData),
+            });
+
+            if (res.ok) {
+              document.getElementById("addItemError").style.display = "none";
+              alert("Item added!");
+              closeAddItemModal();
+              loadInventory();
+            } else {
+              const result = await res.json();
+              const errDiv = document.getElementById("addItemError");
+              errDiv.style.display = "block";
+              errDiv.innerText = result.message || "Failed to save item.";
+            }
+          } catch (err) {
+            console.error(err);
+            document.getElementById("addItemError").style.display = "block";
+            document.getElementById("addItemError").innerText = "Something went wrong.";
+          }
+        });
+    </script>
+    <!-- FullCalendar CSS -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.css"
+      rel="stylesheet"
+    />
+
+    <!-- FullCalendar JS -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.js"></script>
+    <script src="admin_dashboard.js"></script>
+
+  </body>
+</html>

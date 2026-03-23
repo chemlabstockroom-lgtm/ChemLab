@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Student Login - ChemLab</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link rel="stylesheet" href="student_login.css">
+</head>
+<body>
+
+  <div class="logo-section">
+    <div class="chemlab-logo">
+        <i class="fas fa-flask logo-icon"></i>
+    </div>
+    <h1>ChemLab Portal</h1>
+    <p>Student Portal Access</p>
+  </div>
+
+  <div class="login-container">
+    <h2>Student Login</h2>
+    <form id="login">
+      <label for="labID">Lab ID</label>
+      <input id="labID" name="labID" placeholder="CL-000001" required />
+
+      <label for="password">Password</label>
+      <div class="password-wrapper">
+        <input id="password" name="password" type="password" placeholder="••••••••" required />
+        <i class="fas fa-eye" id="togglePassword"></i>
+      </div>
+
+      <button type="submit">Login</button>
+    </form>
+    
+    <div id="msg"></div>
+    
+    <div class="form-footer">
+        <a href="registration.html" class="link">Create an account</a>
+        <span class="divider">|</span>
+        <a href="index.html" class="link">Return to Home</a>
+    </div>
+  </div>
+
+  <footer>
+    © 2026 ChemLab Portal | Secure Student Access
+  </footer>
+
+  <script>
+    const togglePassword = document.querySelector('#togglePassword');
+    const passwordInput = document.querySelector('#password');
+
+    togglePassword.addEventListener('click', function () {
+      const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+      passwordInput.setAttribute('type', type);
+      this.classList.toggle('fa-eye');
+      this.classList.toggle('fa-eye-slash');
+    });
+    
+    document.getElementById('login').addEventListener('submit', async e => {
+      e.preventDefault();
+      const p = {
+        labID: e.target.labID.value.trim(),
+        password: e.target.password.value
+      };
+      
+      const msg = document.getElementById('msg');
+      msg.style.color = "white";
+      msg.innerText = "Authenticating...";
+
+      try {
+        const res = await fetch('/api/auth/student/login', {
+          method: 'POST',
+          body: JSON.stringify(p),
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const j = await res.json();
+
+        if (res.ok) {
+          localStorage.setItem('studentToken', j.token);
+          localStorage.setItem('studentLoginData', JSON.stringify({
+            name: j.name,
+            labID: j.labID,
+            policyAgreed: j.policyAgreed
+          }));
+
+          msg.style.color = "#ffd700";
+          msg.innerText = 'Login success. Welcome ' + j.name;
+
+          setTimeout(() => {
+            window.location.href = "student_dashboard.html";
+          }, 1000);
+        } else {
+          msg.style.color = "#ff6b6b";
+          msg.innerText = j.message || 'Login failed';
+        }
+      } catch (err) {
+        msg.style.color = "#ff6b6b";
+        msg.innerText = "Error connecting to server.";
+      }
+    });
+  </script>
+</body>
+</html>

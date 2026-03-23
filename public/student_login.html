@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Student Login - ChemLab</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link rel="stylesheet" href="student_login.css">
+</head>
+<body>
+
+  <div class="logo-section">
+    <div class="chemlab-logo">
+        <i class="fas fa-flask logo-icon"></i>
+    </div>
+    <h1>ChemLab Portal</h1>
+    <p>Student Portal Access</p>
+  </div>
+
+  <div class="login-container">
+
+    <!-- ===== LOGIN PANEL ===== -->
+    <div id="loginPanel">
+      <h2>Student Login</h2>
+      <form id="login">
+        <label for="labID">Lab ID</label>
+        <input id="labID" name="labID" placeholder="CL-000001" required />
+
+        <label for="password">Password</label>
+        <div class="password-wrapper">
+          <input id="password" name="password" type="password" placeholder="••••••••" required />
+          <i class="fas fa-eye" id="togglePassword"></i>
+        </div>
+
+        <button type="submit">Login</button>
+      </form>
+
+      <div id="msg" style="display:none;"></div>
+
+      <div class="form-footer">
+        <a href="registration.html" class="link">Create an account</a>
+        <span class="divider">|</span>
+        <a href="#" class="link" onclick="showForgot(true); return false;">Forgot Password?</a>
+        <span class="divider">|</span>
+        <a href="index.html" class="link">Return to Home</a>
+      </div>
+    </div>
+
+    <!-- ===== FORGOT PASSWORD PANEL ===== -->
+    <div id="forgotPanel" style="display:none;">
+      <h2>Reset Password</h2>
+      <p style="font-size:0.9rem; color:#aaa; margin-bottom:20px;">
+        Enter your <strong>Lab ID</strong> or your registered <strong>school email</strong>.
+        A temporary password will be sent to your email on file.
+      </p>
+
+      <form id="forgotForm">
+        <label for="forgotIdentifier">Lab ID or School Email</label>
+        <input
+          id="forgotIdentifier"
+          type="text"
+          placeholder="CL-000001 or you@dlsud.edu.ph"
+          required
+        />
+        <button type="submit">Send Temporary Password</button>
+      </form>
+
+      <div id="forgotMsg" style="display:none;"></div>
+
+      <div class="form-footer">
+        <a href="#" class="link" onclick="showForgot(false); return false;">← Back to Login</a>
+      </div>
+    </div>
+
+  </div><!-- end .login-container -->
+
+  <footer>
+    © 2026 ChemLab Portal | Secure Student Access
+  </footer>
+
+  <script>
+  document.getElementById('togglePassword').addEventListener('click', function () {
+    const pwd = document.getElementById('password');
+    pwd.setAttribute('type', pwd.getAttribute('type') === 'password' ? 'text' : 'password');
+    this.classList.toggle('fa-eye');
+    this.classList.toggle('fa-eye-slash');
+  });
+
+  function showForgot(show) {
+    document.getElementById('loginPanel').style.display  = show ? 'none' : 'block';
+    document.getElementById('forgotPanel').style.display = show ? 'block' : 'none';
+    clearMsg('msg');
+    clearMsg('forgotMsg');
+  }
+
+  function clearMsg(id) {
+    const el = document.getElementById(id);
+    el.innerText = '';
+    el.style.display = 'none';
+  }
+
+  function showMsg(id, text, isError) {
+    const el = document.getElementById(id);
+    el.style.display    = 'block';
+    el.innerText        = text;
+    el.style.marginTop  = '16px';
+    el.style.padding    = '12px 16px';
+    el.style.borderRadius = '8px';
+    el.style.fontSize   = '0.9rem';
+    el.style.fontWeight = '500';
+    el.style.background = isError ? 'rgba(255,107,107,0.12)' : 'rgba(168,224,99,0.1)';
+    el.style.border     = isError ? '1px solid rgba(255,107,107,0.4)' : '1px solid rgba(168,224,99,0.3)';
+    el.style.color      = isError ? '#ff6b6b' : '#ffd700';
+  }
+
+  document.getElementById('login').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.innerText = 'Authenticating...';
+    try {
+      const res = await fetch('/api/auth/student/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          labID: e.target.labID.value.trim(),
+          password: e.target.password.value
+        })
+      });
+      const j = await res.json();
+      if (res.ok) {
+        localStorage.setItem('studentToken', j.token);
+        localStorage.setItem('studentLoginData', JSON.stringify({
+          name: j.name,
+          labID: j.labID,
+          policyAgreed: j.policyAgreed
+        }));
+        showMsg('msg', 'Login successful. Welcome, ' + j.name + '!', false);
+        setTimeout(() => { window.location.href = 'student_dashboard.html'; }, 1000);
+      } else {
+        showMsg('msg', j.message || 'Login failed. Please check your credentials.', true);
+        btn.disabled = false;
+        btn.innerText = 'Login';
+      }
+    } catch {
+      showMsg('msg', 'Cannot connect to the server. Please check your connection.', true);
+      btn.disabled = false;
+      btn.innerText = 'Login';
+    }
+  });
+
+  document.getElementById('forgotForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.innerText = 'Sending...';
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          identifier: document.getElementById('forgotIdentifier').value.trim(),
+          role: 'student'
+        })
+      });
+      const j = await res.json();
+      showMsg('forgotMsg', j.message || 'Request processed.', !res.ok);
+      if (res.ok) document.getElementById('forgotForm').reset();
+    } catch {
+      showMsg('forgotMsg', 'Cannot connect to the server.', true);
+    } finally {
+      btn.disabled = false;
+      btn.innerText = 'Send Temporary Password';
+    }
+  });
+  </script>
+</body>
+</html>

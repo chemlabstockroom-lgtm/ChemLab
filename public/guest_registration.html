@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Guest Registration - ChemLab</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link rel="stylesheet" href="guest_registration.css">
+</head>
+<body>
+
+  <div class="logo-section">
+    <div class="chemlab-logo">
+        <i class="fas fa-flask logo-icon"></i>
+    </div>
+    <h1>ChemLab Portal</h1>
+    <p>Guest Access Request</p>
+  </div>
+
+  <div class="register-container">
+    <h2>Guest Registration</h2>
+    <form id="reg">
+      <label for="fullName">Full Name</label>
+      <input id="fullName" name="fullName" placeholder="Enter your full name" required />
+      
+      <label for="email">Email Address</label>
+      <input id="email" name="email" type="email" placeholder="example@email.com" required />
+
+      <label for="password">Create Password</label>
+      <div class="password-wrapper">
+        <input id="password" name="password" type="password" placeholder="••••••••" required />
+        <i class="fas fa-eye" id="togglePassword"></i>
+      </div>
+      <div class="password-hint">
+        Min. 8 chars, include uppercase, number, and symbol.
+      </div>
+
+      <button type="submit">Request Access</button>
+    </form>
+    
+    <div id="msg"></div>
+    
+    <a href="index.html" class="back-link">
+      <i class="fas fa-arrow-left"></i> Return to Home
+    </a>
+  </div>
+
+  <footer>
+    © 2026 ChemLab Portal | Secure Guest Access
+  </footer>
+
+  <script>
+    // Logic to toggle password visibility
+    const togglePassword = document.querySelector('#togglePassword');
+    const passwordInput = document.querySelector('#password');
+
+    togglePassword.addEventListener('click', function () {
+      const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+      passwordInput.setAttribute('type', type);
+      this.classList.toggle('fa-eye');
+      this.classList.toggle('fa-eye-slash');
+    });
+
+    // --- Backend-Ready Form Logic ---
+    document.getElementById('reg').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = e.target;
+      const msg = document.getElementById('msg');
+      
+      const payload = {
+        fullName: f.fullName.value.trim(),
+        email: f.email.value.trim(),
+        password: f.password.value
+      };
+      
+      msg.style.color = "white";
+      msg.innerText = "Processing request...";
+
+      try {
+        // Updated URL to /api/guest/register to match server.js
+        const res = await fetch('/api/guest/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const j = await res.json();
+
+        if (res.ok) {
+          msg.style.color = "#ffd700"; // Gold accent color
+          msg.innerText = "Registration successful! Redirecting to login...";
+          
+          // Clear form
+          f.reset();
+
+          setTimeout(() => { 
+            window.location.href = "guest_login.html"; 
+          }, 2000);
+        } else {
+          msg.style.color = "#ff6b6b"; // Error red
+          msg.innerText = j.message || "Registration failed.";
+        }
+      } catch (err) {
+        msg.style.color = "#ff6b6b";
+        msg.innerText = "Connection error. Is the server running?";
+      }
+    });
+  </script>
+</body>
+</html>
