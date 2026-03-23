@@ -1,6 +1,6 @@
 // admin_dashboard.js
 
-const API_BASE = "/api/";
+const API_BASE = "/api";
 const token = localStorage.getItem("adminToken");
 if (!token) {
   alert("Please login first.");
