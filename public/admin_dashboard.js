@@ -1075,6 +1075,9 @@ renderNotifList("pendingApprovals", data.pendingApprovals, "fullName");
 
 
     // ====== MONTHLY OVERVIEW CHART ======
+    const chartCanvas = document.getElementById("overviewChart");
+
+    if (chartCanvas) {
     const ctx = document.getElementById("overviewChart").getContext("2d");
     if (window.overviewChartInstance) window.overviewChartInstance.destroy(); // destroy old chart if exists
 
@@ -1101,6 +1104,7 @@ renderNotifList("pendingApprovals", data.pendingApprovals, "fullName");
         scales: { y: { beginAtZero: true } }
       }
     });
+  }
 
   } catch (err) {
     console.error("Dashboard load error:", err);
