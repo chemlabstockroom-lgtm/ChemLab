@@ -10,7 +10,7 @@ const nodemailer = require("nodemailer");
 // If your school uses a different mail server, update host/port accordingly.
 const transporter = nodemailer.createTransport({
   host: process.env.MAIL_HOST || "in-v3.mailjet.com", // mailjet is for production.
-  port: parseInt(process.env.MAIL_PORT) || 587,
+  port: parseInt(process.env.MAIL_PORT) || 2525,
   secure: false, // true for port 465, false for 587 (STARTTLS)
   auth: {
     user: process.env.MAIL_USER,   // Your sender email, e.g. chemlab@dlsud.edu.ph
