@@ -61,9 +61,16 @@ async function lookupChemicalByBarcode(barcode) {
 
 // ===== PAGE SWITCHING =====
 function showPage(id) {
+  // Hide all pages
   document.querySelectorAll(".page").forEach(p => p.classList.add("hidden"));
-  document.getElementById(id).classList.remove("hidden");
+  
+  // Safely unhide the requested page
+  const targetPage = document.getElementById(id);
+  if (targetPage) {
+      targetPage.classList.remove("hidden");
+  }
 
+  // Route to the correct data loader
   switch (id) {
     case "students":
       loadPendingStudents();
@@ -71,8 +78,7 @@ function showPage(id) {
       break;
     case "inventory":
       loadInventory();
-      filterInventory(); // Apply current filters after loading
-      //toggleInventoryTab('equipment');
+      filterInventory(); // Updated to the correct function!
       break;
     case "borrowed":
       loadBorrowed();
