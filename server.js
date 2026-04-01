@@ -2509,3 +2509,11 @@ app.post("/api/auth/forgot-password", async (req, res) => {
     res.status(500).json({ message: "Server error. Please try again." });
   }
 });
+
+// ====== SPA CATCH-ALL ROUTE ======
+// This must remain at the very bottom of the file!
+const path = require('path');
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
