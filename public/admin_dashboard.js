@@ -61,16 +61,20 @@ async function lookupChemicalByBarcode(barcode) {
 
 // ===== PAGE SWITCHING =====
 function showPage(id) {
-  // Hide all pages
-  document.querySelectorAll(".page").forEach(p => p.classList.add("hidden"));
+  // 1. Force hide all pages
+  document.querySelectorAll(".page").forEach(p => {
+      p.style.display = "none";     // Bulletproof hide
+      p.classList.remove("active");
+  });
   
-  // Safely unhide the requested page
+  // 2. Force show the requested page
   const targetPage = document.getElementById(id);
   if (targetPage) {
-      targetPage.classList.remove("hidden");
+      targetPage.style.display = "block"; // Bulletproof show
+      targetPage.classList.add("active");
   }
 
-  // Route to the correct data loader
+  // 3. Load the data
   switch (id) {
     case "students":
       loadPendingStudents();
@@ -78,7 +82,7 @@ function showPage(id) {
       break;
     case "inventory":
       loadInventory();
-      filterInventory(); // Updated to the correct function!
+      filterInventory(); 
       break;
     case "borrowed":
       loadBorrowed();
@@ -154,7 +158,7 @@ async function loadAdminProfile() {
         });
         
         if (res.ok) {
-            adminData = await res.json();
+            const adminData = await res.json();
             
             // 1. Populate Sidebar
             sidebarName.textContent = adminData.name || "Admin";
@@ -545,11 +549,7 @@ async function loadInventory() {
       fetch(`${API_BASE}/admin/fixed-assets`, { headers: tokenHeader }),
     ]);
 
-    // Check if any of the requests failed
-    if (!equipmentRes.ok || !chemicalsRes.ok || !glasswareRes.ok || !fixedAssetsRes.ok) {
-        console.error("One or more inventory APIs failed to load.");
-    }
-
+    // Safely parse the JSON, defaulting to an empty array if empty
     const [equipment, chemicals, glassware, fixedAssets] = await Promise.all([
       equipmentRes.json().catch(() => []),
       chemicalsRes.json().catch(() => []),
@@ -562,111 +562,58 @@ async function loadInventory() {
     setupExportButton("exportChemicals", chemicals, "chemicals_inventory");
     setupExportButton("exportGlassware", glassware, "glassware_inventory");
     setupExportButton("exportFixedAssets", fixedAssets, "fixed_assets_inventory");
-    
     setupFullExportButton(equipment, chemicals, glassware, fixedAssets);
 
-    // clear existing
+    // Clear existing tables
     document.querySelector("#equipmentTable tbody").innerHTML = "";
     document.querySelector("#chemicalsTable tbody").innerHTML = "";
     document.querySelector("#glasswareTable tbody").innerHTML = "";
     document.querySelector("#fixedAssetTable tbody").innerHTML = "";
 
-    // ==== Equipment ====
-    if (equipment.length === 0) {
-        document.querySelector("#equipmentTable tbody").innerHTML = "<tr><td colspan='7' style='text-align:center;'>No equipment found in database.</td></tr>";
-    } else {
-        equipment.forEach(item => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td>${item.dateReceived || ""}</td>
-            <td>${item.itemName || ""}</td>
-            <td>${item.specification || ""}</td>
-            <td>${item.location || ""}</td>
-            <td>${item.quantity || "0"}</td>
-            <td>${item.remainingQuantity ?? 0}</td>
-            <td>
-              <button onclick="editMaterial('${item._id}', 'equipment')">Edit</button>
-              <button onclick="deleteMaterial('${item._id}', 'equipment')">Delete</button>
-            </td>`;
-          document.querySelector("#equipmentTable tbody").appendChild(tr);
-        });
-    }
+    // Safely populate tables (Helper function to keep code clean)
+    const populateTable = (data, tableId, rowHtmlFn, emptyMsg) => {
+        const tbody = document.querySelector(`#${tableId} tbody`);
+        if (!data || data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan='12' style='text-align:center;'>${emptyMsg}</td></tr>`;
+        } else {
+            data.forEach(item => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = rowHtmlFn(item);
+                tbody.appendChild(tr);
+            });
+        }
+    };
 
-    // ==== Chemicals ====
-    if (chemicals.length === 0) {
-        document.querySelector("#chemicalsTable tbody").innerHTML = "<tr><td colspan='10' style='text-align:center;'>No chemicals found in database.</td></tr>";
-    } else {
-        chemicals.forEach(item => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td>${item.barcode || ""}</td>
-            <td>${item.location || ""}</td>
-            <td>${item.dateIn || ""}</td>
-            <td>${item.chemicalName || ""}</td>
-            <td>${item.casNumber || ""}</td>
-            <td>${item.containerSize || ""}</td>
-            <td>${item.status}</td>
-            <td>${item.units || ""}</td>
-            <td>${item.state || ""}</td>
-            <td>
-              <button onclick="editMaterial('${item._id}', 'chemicals')">Edit</button>
-              <button onclick="deleteMaterial('${item._id}', 'chemicals')">Delete</button>
-            </td>`;
-          document.querySelector("#chemicalsTable tbody").appendChild(tr);
-        });
-    }
+    populateTable(equipment, "equipmentTable", item => `
+      <td>${item.dateReceived || ""}</td><td>${item.itemName || ""}</td><td>${item.specification || ""}</td>
+      <td>${item.location || ""}</td><td>${item.quantity || "0"}</td><td>${item.remainingQuantity ?? 0}</td>
+      <td><button onclick="editMaterial('${item._id}', 'equipment')">Edit</button> <button onclick="deleteMaterial('${item._id}', 'equipment')">Delete</button></td>
+    `, "No equipment found in database.");
 
-    // ==== Glassware ====
-    if (glassware.length === 0) {
-        document.querySelector("#glasswareTable tbody").innerHTML = "<tr><td colspan='6' style='text-align:center;'>No glassware found in database.</td></tr>";
-    } else {
-        glassware.forEach(item => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td>${item.itemName || ""}</td>
-            <td>${item.description || ""}</td>
-            <td>${item.quantity || ""}</td>
-            <td>${item.remainingQuantity ?? 0}</td>
-            <td>${item.remarks || ""}</td>
-            <td>
-              <button onclick="editMaterial('${item._id}', 'glassware')">Edit</button>
-              <button onclick="deleteMaterial('${item._id}', 'glassware')">Delete</button>
-            </td>`;
-          document.querySelector("#glasswareTable tbody").appendChild(tr);
-        });
-    }
+    populateTable(chemicals, "chemicalsTable", item => `
+      <td>${item.barcode || ""}</td><td>${item.location || ""}</td><td>${item.dateIn || ""}</td><td>${item.chemicalName || ""}</td>
+      <td>${item.casNumber || ""}</td><td>${item.containerSize || ""}</td><td>${item.status || "Available"}</td>
+      <td>${item.units || ""}</td><td>${item.state || ""}</td>
+      <td><button onclick="editMaterial('${item._id}', 'chemicals')">Edit</button> <button onclick="deleteMaterial('${item._id}', 'chemicals')">Delete</button></td>
+    `, "No chemicals found in database.");
 
-    // ==== Fixed Assets ====
-    if (fixedAssets.length === 0) {
-        document.querySelector("#fixedAssetTable tbody").innerHTML = "<tr><td colspan='11' style='text-align:center;'>No fixed assets found in database.</td></tr>";
-    } else {
-        fixedAssets.forEach(item => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td>${item.dateReceived || ""}</td>
-            <td>${item.propertyCode || ""}</td>
-            <td>${item.itemName || ""}</td>
-            <td>${item.description || ""}</td>
-            <td>${item.serialNumber || ""}</td>
-            <td>${item.location || ""}</td>
-            <td>${item.nFEA || ""}</td>
-            <td>${item.quantity || ""}</td>
-            <td>${item.cost || ""}</td>
-            <td>${item.status || ""}</td>
-            <td>
-              <button onclick="editMaterial('${item._id}', 'fixed-assets')">Edit</button>
-              <button onclick="deleteMaterial('${item._id}', 'fixed-assets')">Delete</button>
-            </td>`;
-          document.querySelector("#fixedAssetTable tbody").appendChild(tr);
-        });
-    }
+    populateTable(glassware, "glasswareTable", item => `
+      <td>${item.itemName || ""}</td><td>${item.description || ""}</td><td>${item.quantity || "0"}</td>
+      <td>${item.remainingQuantity ?? 0}</td><td>${item.remarks || ""}</td>
+      <td><button onclick="editMaterial('${item._id}', 'glassware')">Edit</button> <button onclick="deleteMaterial('${item._id}', 'glassware')">Delete</button></td>
+    `, "No glassware found in database.");
 
-    // Save items to localStorage for student view
+    populateTable(fixedAssets, "fixedAssetTable", item => `
+      <td>${item.dateReceived || ""}</td><td>${item.propertyCode || ""}</td><td>${item.itemName || ""}</td>
+      <td>${item.description || ""}</td><td>${item.serialNumber || ""}</td><td>${item.location || ""}</td>
+      <td>${item.nFEA || ""}</td><td>${item.quantity || "0"}</td><td>${item.cost || ""}</td><td>${item.status || ""}</td>
+      <td><button onclick="editMaterial('${item._id}', 'fixed-assets')">Edit</button> <button onclick="deleteMaterial('${item._id}', 'fixed-assets')">Delete</button></td>
+    `, "No fixed assets found in database.");
+
     saveItems(equipment, glassware, chemicals, fixedAssets);
 
   } catch (err) {
       console.error("Critical error in loadInventory:", err);
-      alert("Failed to load inventory data. Check console for details.");
   }
 }
 
