@@ -65,6 +65,7 @@ function showPage(id) {
   document.querySelectorAll(".page").forEach(p => {
       p.style.display = "none";     // Bulletproof hide
       p.classList.remove("active");
+      p.classList.add("hidden");
   });
   
   // 2. Force show the requested page
@@ -72,6 +73,7 @@ function showPage(id) {
   if (targetPage) {
       targetPage.style.display = "block"; // Bulletproof show
       targetPage.classList.add("active");
+      targetPage.classList.remove("hidden");
   }
 
   // 3. Load the data
@@ -2509,3 +2511,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 });
+
+
+// Run this automatically when the page loads to show the home dashboard
+showPage('home');
