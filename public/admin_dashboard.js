@@ -61,6 +61,7 @@ async function lookupChemicalByBarcode(barcode) {
 
 // ===== PAGE SWITCHING =====
 function showPage(id) {
+  console.log("🚨 BUTTON CLICKED! Trying to load:", id);
   // 1. Force hide all pages
   document.querySelectorAll(".page").forEach(p => {
       p.style.display = "none";     // Bulletproof hide
@@ -71,9 +72,14 @@ function showPage(id) {
   // 2. Force show the requested page
   const targetPage = document.getElementById(id);
   if (targetPage) {
+    console.log("✅ Target page found in HTML! Forcing it visible.");
       targetPage.style.display = "block"; // Bulletproof show
       targetPage.classList.add("active");
       targetPage.classList.remove("hidden");
+
+      targetPage.style.cssText = "display: block !important; visibility: visible !important; opacity: 1 !important; height: auto !important;";
+  }else {
+      console.log("❌ ERROR: Could not find an HTML element with id:", id);
   }
 
   // 3. Load the data
