@@ -537,110 +537,137 @@ function filterInventory() {
 async function loadInventory() {
   const tokenHeader = { Authorization: `Bearer ${token}` };
 
-  const [equipmentRes, chemicalsRes, glasswareRes, fixedAssetsRes] = await Promise.all([
-    fetch(`${API_BASE}/admin/equipment`, { headers: tokenHeader }),
-    fetch(`${API_BASE}/admin/chemicals`, { headers: tokenHeader }),
-    fetch(`${API_BASE}/admin/glassware`, { headers: tokenHeader }),
-    fetch(`${API_BASE}/admin/fixed-assets`, { headers: tokenHeader }),
-  ]);
+  try {
+    const [equipmentRes, chemicalsRes, glasswareRes, fixedAssetsRes] = await Promise.all([
+      fetch(`${API_BASE}/admin/equipment`, { headers: tokenHeader }),
+      fetch(`${API_BASE}/admin/chemicals`, { headers: tokenHeader }),
+      fetch(`${API_BASE}/admin/glassware`, { headers: tokenHeader }),
+      fetch(`${API_BASE}/admin/fixed-assets`, { headers: tokenHeader }),
+    ]);
 
-  const [equipment, chemicals, glassware, fixedAssets] = await Promise.all([
-    equipmentRes.json(),
-    chemicalsRes.json(),
-    glasswareRes.json(),
-    fixedAssetsRes.json(),
-  ]);
+    // Check if any of the requests failed
+    if (!equipmentRes.ok || !chemicalsRes.ok || !glasswareRes.ok || !fixedAssetsRes.ok) {
+        console.error("One or more inventory APIs failed to load.");
+    }
 
-  //EXPORT BUTTONS
-  setupExportButton("exportEquipment", equipment, "equipment_inventory");
-  setupExportButton("exportChemicals", chemicals, "chemicals_inventory");
-  setupExportButton("exportGlassware", glassware, "glassware_inventory");
-  setupExportButton("exportFixedAssets", fixedAssets, "fixed_assets_inventory");
-  
-  setupFullExportButton(equipment, chemicals, glassware, fixedAssets);
+    const [equipment, chemicals, glassware, fixedAssets] = await Promise.all([
+      equipmentRes.json().catch(() => []),
+      chemicalsRes.json().catch(() => []),
+      glasswareRes.json().catch(() => []),
+      fixedAssetsRes.json().catch(() => []),
+    ]);
 
-  // clear existing
-  document.querySelector("#equipmentTable tbody").innerHTML = "";
-  document.querySelector("#chemicalsTable tbody").innerHTML = "";
-  document.querySelector("#glasswareTable tbody").innerHTML = "";
-  document.querySelector("#fixedAssetTable tbody").innerHTML = "";
+    // EXPORT BUTTONS
+    setupExportButton("exportEquipment", equipment, "equipment_inventory");
+    setupExportButton("exportChemicals", chemicals, "chemicals_inventory");
+    setupExportButton("exportGlassware", glassware, "glassware_inventory");
+    setupExportButton("exportFixedAssets", fixedAssets, "fixed_assets_inventory");
+    
+    setupFullExportButton(equipment, chemicals, glassware, fixedAssets);
 
-  // ==== Equipment ====
-  equipment.forEach(item => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${item.dateReceived || ""}</td>
-      <td>${item.itemName || ""}</td>
-      <td>${item.specification || ""}</td>
-      <td>${item.location || ""}</td>
-      <td>${item.quantity || "0"}</td>
-      <td>${item.remainingQuantity ?? 0}</td>
-      <td>
-        <button onclick="editMaterial('${item._id}', 'equipment')">Edit</button>
-        <button onclick="deleteMaterial('${item._id}', 'equipment')">Delete</button>
-      </td>`;
-    document.querySelector("#equipmentTable tbody").appendChild(tr);
-  });
+    // clear existing
+    document.querySelector("#equipmentTable tbody").innerHTML = "";
+    document.querySelector("#chemicalsTable tbody").innerHTML = "";
+    document.querySelector("#glasswareTable tbody").innerHTML = "";
+    document.querySelector("#fixedAssetTable tbody").innerHTML = "";
 
-  // ==== Chemicals ====
-  chemicals.forEach(item => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${item.barcode || ""}</td>
-      <td>${item.location || ""}</td>
-      <td>${item.dateIn || ""}</td>
-      <td>${item.chemicalName || ""}</td>
-      <td>${item.casNumber || ""}</td>
-      <td>${item.containerSize || ""}</td>
-      <td>${item.status}</td>
-      <td>${item.units || ""}</td>
-      <td>${item.state || ""}</td>
-      <td>
-        <button onclick="editMaterial('${item._id}', 'chemicals')">Edit</button>
-        <button onclick="deleteMaterial('${item._id}', 'chemicals')">Delete</button>
-      </td>`;
-    document.querySelector("#chemicalsTable tbody").appendChild(tr);
-  });
+    // ==== Equipment ====
+    if (equipment.length === 0) {
+        document.querySelector("#equipmentTable tbody").innerHTML = "<tr><td colspan='7' style='text-align:center;'>No equipment found in database.</td></tr>";
+    } else {
+        equipment.forEach(item => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${item.dateReceived || ""}</td>
+            <td>${item.itemName || ""}</td>
+            <td>${item.specification || ""}</td>
+            <td>${item.location || ""}</td>
+            <td>${item.quantity || "0"}</td>
+            <td>${item.remainingQuantity ?? 0}</td>
+            <td>
+              <button onclick="editMaterial('${item._id}', 'equipment')">Edit</button>
+              <button onclick="deleteMaterial('${item._id}', 'equipment')">Delete</button>
+            </td>`;
+          document.querySelector("#equipmentTable tbody").appendChild(tr);
+        });
+    }
 
-  // ==== Glassware ====
-  glassware.forEach(item => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${item.itemName || ""}</td>
-      <td>${item.description || ""}</td>
-      <td>${item.quantity || ""}</td>
-      <td>${item.remainingQuantity ?? 0}</td>
-      <td>${item.remarks || ""}</td>
-      <td>
-        <button onclick="editMaterial('${item._id}', 'glassware')">Edit</button>
-        <button onclick="deleteMaterial('${item._id}', 'glassware')">Delete</button>
-      </td>`;
-    document.querySelector("#glasswareTable tbody").appendChild(tr);
-  });
+    // ==== Chemicals ====
+    if (chemicals.length === 0) {
+        document.querySelector("#chemicalsTable tbody").innerHTML = "<tr><td colspan='10' style='text-align:center;'>No chemicals found in database.</td></tr>";
+    } else {
+        chemicals.forEach(item => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${item.barcode || ""}</td>
+            <td>${item.location || ""}</td>
+            <td>${item.dateIn || ""}</td>
+            <td>${item.chemicalName || ""}</td>
+            <td>${item.casNumber || ""}</td>
+            <td>${item.containerSize || ""}</td>
+            <td>${item.status}</td>
+            <td>${item.units || ""}</td>
+            <td>${item.state || ""}</td>
+            <td>
+              <button onclick="editMaterial('${item._id}', 'chemicals')">Edit</button>
+              <button onclick="deleteMaterial('${item._id}', 'chemicals')">Delete</button>
+            </td>`;
+          document.querySelector("#chemicalsTable tbody").appendChild(tr);
+        });
+    }
 
-  // ==== Fixed Assets ====
-  fixedAssets.forEach(item => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${item.dateReceived || ""}</td>
-      <td>${item.propertyCode || ""}</td>
-      <td>${item.itemName || ""}</td>
-      <td>${item.description || ""}</td>
-      <td>${item.serialNumber || ""}</td>
-      <td>${item.location || ""}</td>
-      <td>${item.nFEA || ""}</td>
-      <td>${item.quantity || ""}</td>
-      <td>${item.cost || ""}</td>
-      <td>${item.status || ""}</td>
-      <td>
-        <button onclick="editMaterial('${item._id}', 'fixed-assets')">Edit</button>
-        <button onclick="deleteMaterial('${item._id}', 'fixed-assets')">Delete</button>
-      </td>`;
-    document.querySelector("#fixedAssetTable tbody").appendChild(tr);
-  });
+    // ==== Glassware ====
+    if (glassware.length === 0) {
+        document.querySelector("#glasswareTable tbody").innerHTML = "<tr><td colspan='6' style='text-align:center;'>No glassware found in database.</td></tr>";
+    } else {
+        glassware.forEach(item => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${item.itemName || ""}</td>
+            <td>${item.description || ""}</td>
+            <td>${item.quantity || ""}</td>
+            <td>${item.remainingQuantity ?? 0}</td>
+            <td>${item.remarks || ""}</td>
+            <td>
+              <button onclick="editMaterial('${item._id}', 'glassware')">Edit</button>
+              <button onclick="deleteMaterial('${item._id}', 'glassware')">Delete</button>
+            </td>`;
+          document.querySelector("#glasswareTable tbody").appendChild(tr);
+        });
+    }
 
-  // ✅ Added: Save items to localStorage for student view
-  saveItems(equipment, glassware, chemicals, fixedAssets);
+    // ==== Fixed Assets ====
+    if (fixedAssets.length === 0) {
+        document.querySelector("#fixedAssetTable tbody").innerHTML = "<tr><td colspan='11' style='text-align:center;'>No fixed assets found in database.</td></tr>";
+    } else {
+        fixedAssets.forEach(item => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${item.dateReceived || ""}</td>
+            <td>${item.propertyCode || ""}</td>
+            <td>${item.itemName || ""}</td>
+            <td>${item.description || ""}</td>
+            <td>${item.serialNumber || ""}</td>
+            <td>${item.location || ""}</td>
+            <td>${item.nFEA || ""}</td>
+            <td>${item.quantity || ""}</td>
+            <td>${item.cost || ""}</td>
+            <td>${item.status || ""}</td>
+            <td>
+              <button onclick="editMaterial('${item._id}', 'fixed-assets')">Edit</button>
+              <button onclick="deleteMaterial('${item._id}', 'fixed-assets')">Delete</button>
+            </td>`;
+          document.querySelector("#fixedAssetTable tbody").appendChild(tr);
+        });
+    }
+
+    // Save items to localStorage for student view
+    saveItems(equipment, glassware, chemicals, fixedAssets);
+
+  } catch (err) {
+      console.error("Critical error in loadInventory:", err);
+      alert("Failed to load inventory data. Check console for details.");
+  }
 }
 
 function toggleInventoryTab() {
