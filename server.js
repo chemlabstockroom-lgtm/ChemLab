@@ -839,38 +839,36 @@ app.delete("/api/admin/fixed-assets/:id", async (req, res) => {
 
 
 // ===== DASHBOARD API =====
-app.get("/api/admin/dashboard", async (req, res) => {
+// Added authMiddleware and requireAdmin to secure the route!
+app.get("/api/admin/dashboard", authMiddleware, requireAdmin, async (req, res) => {
   try {
-    // Calculate Total Materials by SUMMING the original 'quantity' field for all models
-    const totalEquipmentResult = await Equipment.aggregate([{ $group: { _id: null, total: { $sum: "$quantity" } } }]);
-    const totalChemicalsResult = await Chemical.aggregate([{ $group: { _id: null, total: { $sum: "$quantity" } } }]);
-    const totalGlasswareResult = await Glassware.aggregate([{ $group: { _id: null, total: { $sum: "$quantity" } } }]);
-    const totalFixedResult = await FixedAsset.aggregate([{ $group: { _id: null, total: { $sum: "$quantity" } } }]);
+    // Calculate Total Materials 
+    const totalEquipmentResult = await Equipment.aggregate([{ $group: { _id: null, total: { $sum: "$quantity" } } }]);
+    const totalChemicalsResult = await Chemical.aggregate([{ $group: { _id: null, total: { $sum: "$quantity" } } }]);
+    const totalGlasswareResult = await Glassware.aggregate([{ $group: { _id: null, total: { $sum: "$quantity" } } }]);
+    const totalFixedResult = await FixedAsset.aggregate([{ $group: { _id: null, total: { $sum: "$quantity" } } }]);
 
-    const totalMaterials =
-      (totalEquipmentResult[0]?.total || 0) +
-      (totalChemicalsResult[0]?.total || 0) +
-      (totalGlasswareResult[0]?.total || 0) +
-      (totalFixedResult[0]?.total || 0);
+    const totalMaterials =
+      (totalEquipmentResult[0]?.total || 0) +
+      (totalChemicalsResult[0]?.total || 0) +
+      (totalGlasswareResult[0]?.total || 0) +
+      (totalFixedResult[0]?.total || 0);
 
-    // Calculate Available Materials by SUMMING the 'remainingQuantity' field for all models
-    const availableEquipment = await Equipment.aggregate([{ $group: { _id: null, total: { $sum: "$remainingQuantity" } } }]);
-    const availableChemicals = await Chemical.aggregate([{ $group: { _id: null, total: { $sum: "$remainingQuantity" } } }]);
-    const availableGlassware = await Glassware.aggregate([{ $group: { _id: null, total: { $sum: "$remainingQuantity" } } }]);
-    
-    // Fixed Assets: Assumed to be non-consumable, so we use '$quantity' since it has no remainingQuantity field
-    const availableFixed = await FixedAsset.aggregate([{ $group: { _id: null, total: { $sum: "$quantity" } } }]);
+    // Calculate Available Materials 
+    const availableEquipment = await Equipment.aggregate([{ $group: { _id: null, total: { $sum: "$remainingQuantity" } } }]);
+    const availableChemicals = await Chemical.aggregate([{ $group: { _id: null, total: { $sum: "$remainingQuantity" } } }]);
+    const availableGlassware = await Glassware.aggregate([{ $group: { _id: null, total: { $sum: "$remainingQuantity" } } }]);
+    const availableFixed = await FixedAsset.aggregate([{ $group: { _id: null, total: { $sum: "$quantity" } } }]);
 
-    const availableMaterials =
-      (availableEquipment[0]?.total || 0) +
-      (availableChemicals[0]?.total || 0) +
-      (availableGlassware[0]?.total || 0) +
-      (availableFixed[0]?.total || 0);
+    const availableMaterials =
+      (availableEquipment[0]?.total || 0) +
+      (availableChemicals[0]?.total || 0) +
+      (availableGlassware[0]?.total || 0) +
+      (availableFixed[0]?.total || 0);
 
-    // ⭐ Fixed: Standardizing to 'remainingQuantity'
-    const lowStockEquipment = await Equipment.countDocuments({ remainingQuantity: { $lte: 3 } });
-    const lowStockChemicals = await Chemical.countDocuments({ remainingQuantity: { $lte: 3 } });
-    const lowStockGlassware = await Glassware.countDocuments({ remainingQuantity: { $lte: 3 } });
+    const lowStockEquipment = await Equipment.countDocuments({ remainingQuantity: { $lte: 3 } });
+    const lowStockChemicals = await Chemical.countDocuments({ remainingQuantity: { $lte: 3 } });
+    const lowStockGlassware = await Glassware.countDocuments({ remainingQuantity: { $lte: 3 } });
     const lowStockFixed = await FixedAsset.countDocuments({ quantity: { $lte: 3 } });
 
     const lowStock = lowStockEquipment + lowStockChemicals + lowStockGlassware + lowStockFixed;
@@ -880,10 +878,10 @@ app.get("/api/admin/dashboard", async (req, res) => {
 
     const borrowedToday = await Borrowed.countDocuments({ borrowedAt: { $gte: today } });
     const recentBorrowedRaw = await Borrowed.find()
-    .populate("studentId", "fullName")
-    .populate("experimentId", "name")
-    .sort({ createdAt: -1 })
-    .limit(5);
+      .populate("studentId", "fullName")
+      .populate("experimentId", "name")
+      .sort({ createdAt: -1 })
+      .limit(5);
     
     const recentBorrowed = recentBorrowedRaw.map(b => ({
       studentName: b.studentId?.fullName || "Unknown Student",
@@ -891,82 +889,85 @@ app.get("/api/admin/dashboard", async (req, res) => {
       borrowedAt: b.borrowedAt,
     }));
 
-
-    const brokenReports = await Breakage.countDocuments({ 
+    const brokenReports = await Breakage.countDocuments({ 
         reportedAt: { $gte: today }, 
-        violation: /broken|damaged|lost/i // Added common damage/loss terms for a better count
+        violation: /broken|damaged|lost/i 
     });
-    const pendingStudents = await Student.countDocuments({ status: "pending" });
-    
-    // 1. Fetch recent breakages
-    const recentBreakagesRaw = await Breakage.find().sort({ reportedAt: -1 }).limit(5).lean();
-    
-    // 2. Map over the breakages to find the student's full name using labID
-    const recentAccountability = await Promise.all(recentBreakagesRaw.map(async b => {
-      const student = await Student.findOne({ labID: b.labID }).select('fullName');
-      return {
-        ...b,
-        studentName: student ? student.fullName : 'Unknown Student', // ⭐ ADDED FULL NAME
-      };
-    }));
+    const pendingStudents = await Student.countDocuments({ status: "pending" });
+    
+    const recentBreakagesRaw = await Breakage.find().sort({ reportedAt: -1 }).limit(5).lean();
+    
+    const recentAccountability = await Promise.all(recentBreakagesRaw.map(async b => {
+      const student = await Student.findOne({ labID: b.labID }).select('fullName');
+      return {
+        ...b,
+        studentName: student ? student.fullName : 'Unknown Student',
+      };
+    }));
 
-    const appointments = await Appointment.find().sort({ createdAt: -1 }).limit(10);
+    const appointments = await Appointment.find().sort({ createdAt: -1 }).limit(10);
 
     // ===== Notifications & Approvals =====
-    const urgentNotificationsRaw = await Breakage.find({ violation: /critical|urgent|broken/i })
-  .select("item violation labID")
-  .limit(5).lean();
+    const urgentNotificationsRaw = await Breakage.find({ violation: /critical|urgent|broken/i })
+      .select("item violation labID")
+      .limit(5).lean();
 
-const urgentNotifications = await Promise.all(urgentNotificationsRaw.map(async n => {
-  const student = await Student.findOne({ labID: n.labID }).select('fullName');
-  const sName = student ? student.fullName : 'Unknown Student';
-  return {
-    ...n,
-    studentName: sName,
-    displayText: `${n.item} (${n.violation.toUpperCase()}) - ${sName}` // Create a clean string
-  };
-}));
+    const urgentNotifications = await Promise.all(urgentNotificationsRaw.map(async n => {
+      const student = await Student.findOne({ labID: n.labID }).select('fullName');
+      const sName = student ? student.fullName : 'Unknown Student';
+      return {
+        ...n,
+        studentName: sName,
+        displayText: `${n.item} (${n.violation.toUpperCase()}) - ${sName}` 
+      };
+    }));
 
-// 2. Today's Reminders (FIXED: Now looks up the student name)
-const startOfToday = new Date();
-startOfToday.setHours(0, 0, 0, 0);
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
 
-const endOfWeek = new Date();
-endOfWeek.setDate(startOfToday.getDate() + 7);
-endOfWeek.setHours(23, 59, 59, 999);
+    const endOfWeek = new Date();
+    endOfWeek.setDate(startOfToday.getDate() + 7);
+    endOfWeek.setHours(23, 59, 59, 999);
 
-const weeklyRemindersRaw = await Appointment.find({ 
-    date: { $gte: startOfToday, $lte: endOfWeek } 
-}).sort({ date: 1, timeSlot: 1 }).lean(); // Sort by date, then by the timeSlot string
+    const weeklyRemindersRaw = await Appointment.find({ 
+        date: { $gte: startOfToday, $lte: endOfWeek } 
+    }).sort({ date: 1, timeSlot: 1 }).lean(); 
 
-const todayReminders = await Promise.all(weeklyRemindersRaw.map(async a => {
-  const student = await Student.findOne({ labID: a.labID }).select('fullName');
-  const sName = student ? student.fullName : 'Unknown Student';
-  
-  const dateObj = new Date(a.date);
-  const isToday = new Date().toDateString() === dateObj.toDateString();
-  const dateLabel = isToday ? "Today" : dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    // FIX: Properly handle studentId, guestId, and manual studentName entries
+    const todayReminders = await Promise.all(weeklyRemindersRaw.map(async a => {
+      let sName = 'Unknown User';
+      
+      if (a.studentId) {
+        const student = await Student.findById(a.studentId).select('fullName');
+        if (student) sName = student.fullName;
+      } else if (a.guestId) {
+        const guest = await Guest.findById(a.guestId).select('fullName');
+        if (guest) sName = guest.fullName;
+      } else if (a.studentName) {
+        sName = a.studentName; // Fallback for manual face-to-face entries
+      }
+      
+      const dateObj = new Date(a.date);
+      const isToday = new Date().toDateString() === dateObj.toDateString();
+      const dateLabel = isToday ? "Today" : dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
-  // Use timeSlot here instead of time
-  let displayTime = a.timeSlot || null ;
-  
-  if (!displayTime && a.date) {
-    const dateObj = new Date(a.date);
-    displayTime = dateObj.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit', 
-      hour12: true 
-    });
-  }
+      let displayTime = a.timeSlot || null ;
+      
+      if (!displayTime && a.date) {
+        displayTime = dateObj.toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit', 
+          hour12: true 
+        });
+      }
 
-  displayTime = displayTime || 'TBD';
-  return {
-    ...a,
-    studentName: sName,
-    // Format: [Mar 22] 9:00 AM - 10:00 AM | Thesis - John Doe
-    displayText: `[${dateLabel}] ${displayTime} | ${a.purpose} - ${sName}`
-  };
-}));
+      displayTime = displayTime || 'TBD';
+      return {
+        ...a,
+        studentName: sName,
+        displayText: `[${dateLabel}] ${displayTime} | ${a.purpose} - ${sName}`
+      };
+    }));
 
     const pendingApprovals = await Student.find({ status: "pending" })
       .select("fullName")
@@ -987,7 +988,7 @@ const todayReminders = await Promise.all(weeklyRemindersRaw.map(async a => {
       pendingApprovals
     });
   } catch (err) {
-    console.error(err);
+    console.error("Dashboard Error:", err);
     res.status(500).json({ message: "Error loading dashboard" });
   }
 });
