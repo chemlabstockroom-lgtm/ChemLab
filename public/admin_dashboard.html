@@ -10,7 +10,38 @@
     rel="stylesheet"
     href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
   />
+
+  <style>
+  /* 🚨 NUCLEAR X-RAY DEBUGGING 🚨 */
+  
+  /* 1. Force the parent container to be visible and have height */
+  .main {
+      display: block !important;
+      min-height: 100vh !important;
+      min-width: 50vw !important;
+      border: 5px solid blue !important;
+      background-color: #f0f8ff !important; /* Light blue background */
+  }
+
+  /* 2. Force the pages to break out of any hidden overflow */
+  .page {
+      opacity: 1 !important;
+      visibility: visible !important;
+      z-index: 9999 !important;
+      position: relative !important;
+      min-height: 200px !important;
+      border: 5px solid red !important;
+      background-color: white !important;
+  }
+  
+  /* 3. Hide all modals just in case an invisible overlay is blocking the screen */
+  .modal, .modal-overlay {
+      display: none !important;
+  }
+</style>
   </head>
+
+
   <body>
     <div class="sidebar">
       <button class="close-sidebar" onclick="toggleSidebar()">
