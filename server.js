@@ -2514,6 +2514,6 @@ app.post("/api/auth/forgot-password", async (req, res) => {
 // This must remain at the very bottom of the file!
 const path = require('path');
 
-app.get('*', (req, res) => {
+app.get('/{*splat}', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
