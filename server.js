@@ -2159,9 +2159,10 @@ app.put("/api/admin/appointments/:id/status", authMiddleware, requireAdmin, asyn
             for (const mat of materials) {
                 const need = Number(mat.qty);
                 const nameRegex = new RegExp(`^${mat.item.trim()}$`, "i");
-                const specFilter = mat.specs && mat.specs.trim()
-                    ? new RegExp(`^${mat.specs.trim()}$`, "i")
+                const specVal = mat.specs && mat.specs.trim().toLowerCase() !== "n/a" 
+                    ? mat.specs.trim() 
                     : null;
+                const specFilter = specVal ? new RegExp(`^${specVal}$`, "i") : null;
 
                 // Search across all inventory models
                 let inventoryItem = await Equipment.findOne(
@@ -2197,17 +2198,19 @@ app.put("/api/admin/appointments/:id/status", authMiddleware, requireAdmin, asyn
         }
 
         // 1. DECREASE ONLY when physically ACCEPTED into the lab
-        if (status === "accepted" && appointment.status === "approved") {
-            for (const mat of materials) {
-                await findAndDecrementItem(mat.item, mat.specs, mat.qty);
-            }
-        } 
-        // 2. INCREASE ONLY when gear is officially RETURNED
-        else if (status === "returned" && appointment.status === "accepted") {
-            for (const mat of materials) {
-                await findAndIncrementItem(mat.item, mat.specs, mat.qty);
-            }
-        }
+if (status === "accepted" && appointment.status === "approved") {
+    for (const mat of materials) {
+        const specs = (!mat.specs || mat.specs.trim().toLowerCase() === "n/a") ? "" : mat.specs;
+        await findAndDecrementItem(mat.item, specs, mat.qty);
+    }
+} 
+// 2. INCREASE ONLY when gear is officially RETURNED
+else if (status === "returned" && appointment.status === "accepted") {
+    for (const mat of materials) {
+        const specs = (!mat.specs || mat.specs.trim().toLowerCase() === "n/a") ? "" : mat.specs;
+        await findAndIncrementItem(mat.item, specs, mat.qty);
+    }
+}
         // NOTE: 'rejected' and 'approved' (administrative) do NOT touch inventory
     }
 
