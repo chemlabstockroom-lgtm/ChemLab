@@ -467,13 +467,30 @@ document.addEventListener("DOMContentLoaded", () => {
     loadMyAppointments();
     updateHomeStats();
 
-    // --- NEW VALIDATION CODE ---
-    // This finds the date input and prevents selecting past dates in the UI
+    // --- UPDATED VALIDATION CODE ---
     const dateInput = document.getElementById("appDate");
     if (dateInput) {
-        // Get today's date in YYYY-MM-DD format
-        const today = new Date().toISOString().split('T')[0];
-        dateInput.setAttribute('min', today);
+        const now = new Date();
+        
+        // Format for datetime-local: YYYY-MM-DDTHH:mm
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        
+        const minDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+        
+        // This grays out past dates and times in the picker
+        dateInput.setAttribute('min', minDateTime);
+
+        // Safety: Clear input if the user tries to manually type a past time
+        dateInput.addEventListener('change', function() {
+            if (this.value && new Date(this.value) < new Date()) {
+                alert("Please select a future date and time.");
+                this.value = "";
+            }
+        });
     }
 });
 

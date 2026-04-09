@@ -1620,9 +1620,30 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- 1. PREVENT PAST DATES IN UI ---
     const dateInput = document.getElementById("appDate");
     if (dateInput) {
-        // Sets the minimum selectable date to today
-        const todayStr = new Date().toISOString().split("T")[0];
-        dateInput.setAttribute("min", todayStr);
+        const now = new Date();
+        
+        // Format: YYYY-MM-DD
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        
+        // Format: HH:mm
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+
+        // Combine for datetime-local (e.g., "2026-04-09T16:44")
+        const minDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+        
+        // Apply to the input
+        dateInput.setAttribute("min", minDateTime);
+        
+        // Optional: If they already had a past date typed, clear it
+        dateInput.addEventListener('change', function() {
+            if (this.value && new Date(this.value) < new Date()) {
+                alert("Please select a future date and time.");
+                this.value = "";
+            }
+        });
     }
 
     // --- 2. CATEGORY DROPDOWN LISTENER ---
