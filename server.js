@@ -106,6 +106,18 @@ const AdminSchema = new Schema({
 }, { timestamps: true });
 const Admin = mongoose.model("Admin", AdminSchema);
 
+// ====== ARCHIVE MODEL (Users Only) ======
+const UserArchiveSchema = new Schema({
+  userType: { type: String, enum: ["student", "admin"], required: true },
+  originalId: { type: Schema.Types.ObjectId },
+  data: { type: Schema.Types.Mixed, required: true },
+  deletedBy: { type: Schema.Types.ObjectId, ref: "Admin" },
+  deletedByEmail: String,
+  deletedAt: { type: Date, default: Date.now }
+}, { timestamps: true });
+
+const UserArchive = mongoose.model("UserArchive", UserArchiveSchema);
+
 // Audit log
 const AuditLogSchema = new Schema({
   actorAdminId: { type: Schema.Types.ObjectId, ref: "Admin" },
@@ -2349,6 +2361,96 @@ app.put("/api/admin/students/:id", authMiddleware, requireAdmin, async (req, res
     }
 });
 
+// Delete student permanently (with archive)
+app.delete("/api/admin/students/:id", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const student = await Student.findById(req.params.id);
+    if (!student) return res.status(404).json({ message: "Student not found" });
+
+    await UserArchive.create({
+      userType: "student",
+      originalId: student._id,
+      data: student.toObject(),
+      deletedBy: req.user.id,
+      deletedByEmail: req.user.email
+    });
+
+    await Student.findByIdAndDelete(req.params.id);
+    res.json({ message: "Student archived and deleted successfully" });
+  } catch (err) {
+    console.error("Delete student error:", err);
+    res.status(500).json({ message: "Error deleting student" });
+  }
+});
+
+// ====== USER ARCHIVE ROUTES ======
+
+// GET all archived users (filter by type optionally)
+app.get("/api/admin/user-archive", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const { userType } = req.query;
+    const filter = {};
+    if (userType && userType !== "all") filter.userType = userType;
+
+    const records = await UserArchive.find(filter).sort({ deletedAt: -1 });
+    res.json({ records });
+  } catch (err) {
+    console.error("User archive fetch error:", err);
+    res.status(500).json({ message: "Error fetching user archive" });
+  }
+});
+
+// RESTORE an archived user
+app.post("/api/admin/user-archive/:id/restore", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const record = await UserArchive.findById(req.params.id);
+    if (!record) return res.status(404).json({ message: "Archive record not found" });
+
+    const cleanData = { ...record.data };
+    delete cleanData._id;
+    delete cleanData.__v;
+
+    let restored;
+    if (record.userType === "student") {
+      // Check for email conflict before restoring
+      const emailExists = await Student.findOne({ email: cleanData.email });
+      if (emailExists) {
+        return res.status(409).json({ 
+          message: "A student with this email already exists. Cannot restore." 
+        });
+      }
+      restored = await Student.create(cleanData);
+    } else if (record.userType === "admin") {
+      const emailExists = await Admin.findOne({ email: cleanData.email });
+      if (emailExists) {
+        return res.status(409).json({ 
+          message: "An admin with this email already exists. Cannot restore." 
+        });
+      }
+      restored = await Admin.create(cleanData);
+    } else {
+      return res.status(400).json({ message: "Unknown user type" });
+    }
+
+    await UserArchive.findByIdAndDelete(req.params.id);
+    res.json({ message: `${record.userType} restored successfully`, restored });
+  } catch (err) {
+    console.error("Restore error:", err);
+    res.status(500).json({ message: "Error restoring user: " + err.message });
+  }
+});
+
+// PERMANENTLY delete from archive
+app.delete("/api/admin/user-archive/:id", authMiddleware, requireSuper, async (req, res) => {
+  try {
+    const record = await UserArchive.findByIdAndDelete(req.params.id);
+    if (!record) return res.status(404).json({ message: "Archive record not found" });
+    res.json({ message: "Permanently deleted from archive" });
+  } catch (err) {
+    res.status(500).json({ message: "Error permanently deleting record" });
+  }
+});
+
 // Super admin: create admin
 app.post("/api/admin/admins", authMiddleware, requireSuper, async (req, res) => {
   const { name, email, password, role } = req.body;
@@ -2390,18 +2492,26 @@ app.put("/api/admin/admins/:id", authMiddleware, requireSuper, async (req, res) 
   }
 });
 
-// Superadmin: delete admin
+// Superadmin: delete admin (with archive)
 app.delete("/api/admin/admins/:id", authMiddleware, requireSuper, async (req, res) => {
   try {
-    // Prevent superadmin from deleting themselves
     if (req.params.id === req.user.id) {
       return res.status(400).json({ message: "You cannot delete your own account." });
     }
 
-    const admin = await Admin.findByIdAndDelete(req.params.id);
+    const admin = await Admin.findById(req.params.id);
     if (!admin) return res.status(404).json({ message: "Admin not found" });
 
-    res.json({ message: "Admin deleted successfully" });
+    await UserArchive.create({
+      userType: "admin",
+      originalId: admin._id,
+      data: admin.toObject(),
+      deletedBy: req.user.id,
+      deletedByEmail: req.user.email
+    });
+
+    await Admin.findByIdAndDelete(req.params.id);
+    res.json({ message: "Admin archived and deleted successfully" });
   } catch (err) {
     console.error("Delete admin error:", err);
     res.status(500).json({ message: "Error deleting admin" });

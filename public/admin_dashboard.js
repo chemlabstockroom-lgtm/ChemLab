@@ -110,6 +110,9 @@ function showPage(id) {
     case "admins":
       loadAdmins();
       break;
+    case "archive":
+      loadUserArchive();
+      break;
   }
 }
 
@@ -354,6 +357,7 @@ async function loadActiveStudents() {
       <td>${stu.status}</td>
       <td>
         <button onclick="openEditLabIdModal('${stu._id}', '${stu.fullName}')">Edit Lab ID</button>
+        <button class="reject" onclick="deleteStudent('${stu._id}', '${stu.fullName}')">Delete</button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -2518,6 +2522,119 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
+// ====== USER ARCHIVE ======
+async function loadUserArchive() {
+  const userType = document.getElementById("archiveUserTypeFilter")?.value || "all";
+  const tbody = document.querySelector("#userArchiveTable tbody");
+  tbody.innerHTML = "<tr><td colspan='6'>Loading...</td></tr>";
+
+  try {
+    const params = new URLSearchParams({ userType });
+    const res = await fetch(`${API_BASE}/admin/user-archive?${params}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data = await res.json();
+    tbody.innerHTML = "";
+
+    if (!data.records || data.records.length === 0) {
+      tbody.innerHTML = "<tr><td colspan='6' style='text-align:center; color:rgba(255,255,255,0.5);'>No archived users found.</td></tr>";
+      return;
+    }
+
+    data.records.forEach(record => {
+      const d = record.data;
+      const name  = d.fullName || d.name || "—";
+      const email = d.email || "—";
+      const extra = record.userType === "student"
+        ? (d.labID || "No Lab ID assigned")
+        : d.role?.toUpperCase() || "—";
+      const deletedAt = new Date(record.deletedAt).toLocaleString();
+
+      const isSuperAdmin = payload && payload.role === "superadmin";
+      const permDeleteBtn = isSuperAdmin
+        ? `<button class="reject" onclick="permanentDeleteUser('${record._id}')">Delete Forever</button>`
+        : "";
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${record.userType === "student" ? "Student" : "Admin"}</td>
+        <td>${name}</td>
+        <td>${email}</td>
+        <td>${extra}</td>
+        <td>${deletedAt}</td>
+        <td>
+          <button class="accept" onclick="restoreUser('${record._id}')">Restore</button>
+          ${permDeleteBtn}
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    console.error("User archive load error:", err);
+    tbody.innerHTML = "<tr><td colspan='6' style='color:red;'>Error loading archive.</td></tr>";
+  }
+}
+
+async function restoreUser(id) {
+  if (!confirm("Restore this user back into the system?")) return;
+  try {
+    const res = await fetch(`${API_BASE}/admin/user-archive/${id}/restore`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const result = await res.json();
+    if (res.ok) {
+      alert("User restored successfully!");
+      loadUserArchive();
+      loadPendingStudents();
+      loadActiveStudents();
+      if (payload?.role === "superadmin") loadAdmins();
+    } else {
+      alert("Error: " + result.message);
+    }
+  } catch (err) {
+    alert("Connection error during restore.");
+  }
+}
+
+async function permanentDeleteUser(id) {
+  if (!confirm("⚠️ This will PERMANENTLY erase this user record. This CANNOT be undone. Are you sure?")) return;
+  try {
+    const res = await fetch(`${API_BASE}/admin/user-archive/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const result = await res.json();
+    if (res.ok) {
+      alert("Permanently deleted.");
+      loadUserArchive();
+    } else {
+      alert("Error: " + result.message);
+    }
+  } catch (err) {
+    alert("Connection error.");
+  }
+}
+
+async function deleteStudent(id, name) {
+  if (!confirm(`Remove "${name}" from the system? They will be moved to the archive.`)) return;
+  try {
+    const res = await fetch(`${API_BASE}/admin/students/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const result = await res.json();
+    if (res.ok) {
+      alert("Student moved to archive.");
+      loadActiveStudents();
+      loadPendingStudents();
+    } else {
+      alert("Error: " + result.message);
+    }
+  } catch (err) {
+    alert("Connection error.");
+  }
+}
 
 // Run this automatically when the page loads to show the home dashboard
 showPage('home');

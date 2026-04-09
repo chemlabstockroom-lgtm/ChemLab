@@ -77,6 +77,12 @@
         </li>
 
         <li>
+          <button onclick="showPage('archive')">
+            <i class="fa-solid fa-box-archive"></i> <span>User Archive</span>
+          </button>
+        </li>
+
+        <li>
           <button onclick="showPage('profile')">
             <i class="fa-solid fa-user"></i> <span>My Profile</span>
           </button>
@@ -1224,6 +1230,41 @@
           </form>
         </div>
       </div>
+
+      <!-- USER ARCHIVE -->
+<section id="archive" class="page hidden">
+  <h2>User Archive</h2>
+  <p style="color: rgba(255,255,255,0.6); margin-bottom: 20px;">
+    Deleted student and admin accounts are stored here. 
+    Restore them to bring them back, or permanently delete them (Superadmin only).
+  </p>
+
+  <div style="margin-bottom: 20px;">
+    <select id="archiveUserTypeFilter" onchange="loadUserArchive()" 
+            style="padding: 8px 12px; border-radius: 6px;">
+      <option value="all">All Users</option>
+      <option value="student">Students Only</option>
+      <option value="admin">Admins Only</option>
+    </select>
+  </div>
+
+  <table id="userArchiveTable">
+    <thead>
+      <tr>
+        <th>User Type</th>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Lab ID / Role</th>
+        <th>Deleted At</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td colspan="6" style="text-align:center;">Loading...</td></tr>
+    </tbody>
+  </table>
+</section>
+
 
       <section id="profile" class="page hidden">
         <h2>My Profile</h2>
