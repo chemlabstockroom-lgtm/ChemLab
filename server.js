@@ -849,6 +849,38 @@ app.delete("/api/admin/fixed-assets/:id", async (req, res) => {
   }
 });
 
+// ====== ADD QUANTITY (New Delivery) ======
+app.patch("/api/admin/:category/:id/add-quantity", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const { category, id } = req.params;
+    const { quantityToAdd } = req.body;
+
+    const qty = Number(quantityToAdd);
+    if (!Number.isFinite(qty) || qty <= 0) {
+      return res.status(400).json({ message: "Please provide a valid quantity greater than 0." });
+    }
+
+    let Model;
+    if (category === "equipment") Model = Equipment;
+    else if (category === "chemicals") Model = Chemical;
+    else if (category === "glassware") Model = Glassware;
+    else if (category === "fixed-assets") Model = FixedAsset;
+    else return res.status(400).json({ message: "Invalid category." });
+
+    const item = await Model.findById(id);
+    if (!item) return res.status(404).json({ message: "Item not found." });
+
+    item.quantity = (Number(item.quantity) || 0) + qty;
+    item.remainingQuantity = (Number(item.remainingQuantity) || 0) + qty;
+    await item.save();
+
+    res.json({ message: `Added ${qty} unit(s) to stock.`, item });
+  } catch (err) {
+    console.error("Add quantity error:", err);
+    res.status(500).json({ message: "Error updating quantity." });
+  }
+});
+
 
 // ===== DASHBOARD API =====
 // Added authMiddleware and requireAdmin to secure the route!

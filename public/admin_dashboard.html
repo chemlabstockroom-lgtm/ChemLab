@@ -421,6 +421,40 @@
         </div>
       </div>
 
+      <!-- ADD QUANTITY MODAL -->
+<div id="addQtyModal" class="modal hidden">
+  <div class="modal-form">
+    <h3>Add Delivered Quantity</h3>
+    <p style="color: rgba(255,255,255,0.7); font-size: 0.9rem; margin-bottom: 15px;">
+      Item: <strong id="addQtyItemName"></strong>
+    </p>
+    <form id="addQtyForm">
+      <input type="hidden" id="addQtyItemId" />
+      <input type="hidden" id="addQtyCategory" />
+
+      <label for="addQtyInput">Quantity to Add (New Delivery):</label>
+      <input
+        type="number"
+        id="addQtyInput"
+        min="1"
+        value="1"
+        required
+        placeholder="e.g. 50"
+      />
+      <small style="color: rgba(255,255,255,0.5); font-size: 0.8rem;">
+        This will increase both Total Quantity and Remaining Quantity.
+      </small>
+
+      <div id="addQtyError" style="display:none; margin: 10px 0 0; padding: 10px 14px; border-radius: 8px; font-size: 0.9rem; background: rgba(255,107,107,0.12); border: 1px solid rgba(255,107,107,0.4); color: #ff6b6b;"></div>
+
+      <div class="modal-actions">
+        <button type="button" onclick="closeAddQtyModal()">Cancel</button>
+        <button type="submit">Confirm Add</button>
+      </div>
+    </form>
+  </div>
+</div>
+
       <!-- BORROWED -->
       <section id="borrowed" class="page hidden">
         <h2>Materials Borrowed</h2>
