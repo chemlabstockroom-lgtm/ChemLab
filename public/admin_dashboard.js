@@ -110,6 +110,9 @@ function showPage(id) {
     case "admins":
       loadAdmins();
       break;
+    case "archive":
+      loadUserArchive();
+      break;
   }
 }
 
@@ -354,6 +357,7 @@ async function loadActiveStudents() {
       <td>${stu.status}</td>
       <td>
         <button onclick="openEditLabIdModal('${stu._id}', '${stu.fullName}')">Edit Lab ID</button>
+        <button class="reject" onclick="deleteStudent('${stu._id}', '${stu.fullName}')">Delete</button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -595,27 +599,31 @@ async function loadInventory() {
     populateTable(equipment, "equipmentTable", item => `
       <td>${item.dateReceived || ""}</td><td>${item.itemName || ""}</td><td>${item.specification || ""}</td>
       <td>${item.location || ""}</td><td>${item.quantity || "0"}</td><td>${item.remainingQuantity ?? 0}</td>
-      <td><button onclick="editMaterial('${item._id}', 'equipment')">Edit</button> <button onclick="deleteMaterial('${item._id}', 'equipment')">Delete</button></td>
+      <td><button onclick="editMaterial('${item._id}', 'equipment')">Edit</button> <button class="add-qty-btn" onclick="openAddQtyModal('${item._id}', 'equipment', '${(item.itemName||'').replace(/'/g,"\\'")}')">+ Qty</button>
+      <button onclick="deleteMaterial('${item._id}', 'equipment')">Delete</button></td>
     `, "No equipment found in database.");
 
     populateTable(chemicals, "chemicalsTable", item => `
       <td>${item.barcode || ""}</td><td>${item.location || ""}</td><td>${item.dateIn || ""}</td><td>${item.chemicalName || ""}</td>
       <td>${item.casNumber || ""}</td><td>${item.containerSize || ""}</td><td>${item.status || "Available"}</td>
       <td>${item.units || ""}</td><td>${item.state || ""}</td>
-      <td><button onclick="editMaterial('${item._id}', 'chemicals')">Edit</button> <button onclick="deleteMaterial('${item._id}', 'chemicals')">Delete</button></td>
+      <td><button onclick="editMaterial('${item._id}', 'chemicals')">Edit</button> <button class="add-qty-btn" onclick="openAddQtyModal('${item._id}', 'chemicals', '${(item.chemicalName||'').replace(/'/g,"\\'")}')">+ Qty</button>
+      <button onclick="deleteMaterial('${item._id}', 'chemicals')">Delete</button></td>
     `, "No chemicals found in database.");
 
     populateTable(glassware, "glasswareTable", item => `
       <td>${item.itemName || ""}</td><td>${item.description || ""}</td><td>${item.quantity || "0"}</td>
       <td>${item.remainingQuantity ?? 0}</td><td>${item.remarks || ""}</td>
-      <td><button onclick="editMaterial('${item._id}', 'glassware')">Edit</button> <button onclick="deleteMaterial('${item._id}', 'glassware')">Delete</button></td>
+      <td><button onclick="editMaterial('${item._id}', 'glassware')">Edit</button> <button class="add-qty-btn" onclick="openAddQtyModal('${item._id}', 'glassware', '${(item.itemName||'').replace(/'/g,"\\'")}')">+ Qty</button>
+      <button onclick="deleteMaterial('${item._id}', 'glassware')">Delete</button></td>
     `, "No glassware found in database.");
 
     populateTable(fixedAssets, "fixedAssetTable", item => `
       <td>${item.dateReceived || ""}</td><td>${item.propertyCode || ""}</td><td>${item.itemName || ""}</td>
       <td>${item.description || ""}</td><td>${item.serialNumber || ""}</td><td>${item.location || ""}</td>
       <td>${item.nFEA || ""}</td><td>${item.quantity || "0"}</td><td>${item.cost || ""}</td><td>${item.status || ""}</td>
-      <td><button onclick="editMaterial('${item._id}', 'fixed-assets')">Edit</button> <button onclick="deleteMaterial('${item._id}', 'fixed-assets')">Delete</button></td>
+      <td><button onclick="editMaterial('${item._id}', 'fixed-assets')">Edit</button> <button class="add-qty-btn" onclick="openAddQtyModal('${item._id}', 'fixed-assets', '${(item.itemName||'').replace(/'/g,"\\'")}')">+ Qty</button>
+      <button onclick="deleteMaterial('${item._id}', 'fixed-assets')">Delete</button></td>
     `, "No fixed assets found in database.");
 
     saveItems(equipment, glassware, chemicals, fixedAssets);
@@ -754,6 +762,66 @@ window.onclick = function(event) {
         closeInventoryModal();
     }
 }
+
+// ====== ADD QUANTITY MODAL ======
+function openAddQtyModal(id, category, itemName) {
+  document.getElementById("addQtyItemId").value = id;
+  document.getElementById("addQtyCategory").value = category;
+  document.getElementById("addQtyItemName").textContent = itemName;
+  document.getElementById("addQtyInput").value = 1;
+  const errDiv = document.getElementById("addQtyError");
+  if (errDiv) { errDiv.style.display = "none"; errDiv.innerText = ""; }
+  document.getElementById("addQtyModal").classList.remove("hidden");
+}
+
+function closeAddQtyModal() {
+  document.getElementById("addQtyModal").classList.add("hidden");
+  const errDiv = document.getElementById("addQtyError");
+  if (errDiv) { errDiv.style.display = "none"; errDiv.innerText = ""; }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("addQtyForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const id = document.getElementById("addQtyItemId").value;
+    const category = document.getElementById("addQtyCategory").value;
+    const quantityToAdd = parseInt(document.getElementById("addQtyInput").value);
+
+    const showErr = (msg) => {
+      let errDiv = document.getElementById("addQtyError");
+      errDiv.style.display = "block";
+      errDiv.innerText = msg;
+    };
+
+    if (!quantityToAdd || quantityToAdd <= 0) {
+      showErr("Please enter a valid quantity greater than 0.");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/admin/${category}/${id}/add-quantity`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ quantityToAdd })
+      });
+
+      const result = await res.json();
+      if (res.ok) {
+        alert(`✅ ${result.message}`);
+        closeAddQtyModal();
+        loadInventory();
+      } else {
+        showErr(result.message || "Failed to update quantity.");
+      }
+    } catch (err) {
+      console.error("Add qty error:", err);
+      showErr("Connection error. Please try again.");
+    }
+  });
+});
 
 
 // ====== DELETE MATERIAL ======
@@ -1616,9 +1684,30 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- 1. PREVENT PAST DATES IN UI ---
     const dateInput = document.getElementById("appDate");
     if (dateInput) {
-        // Sets the minimum selectable date to today
-        const todayStr = new Date().toISOString().split("T")[0];
-        dateInput.setAttribute("min", todayStr);
+        const now = new Date();
+        
+        // Format: YYYY-MM-DD
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        
+        // Format: HH:mm
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+
+        // Combine for datetime-local (e.g., "2026-04-09T16:44")
+        const minDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+        
+        // Apply to the input
+        dateInput.setAttribute("min", minDateTime);
+        
+        // Optional: If they already had a past date typed, clear it
+        dateInput.addEventListener('change', function() {
+            if (this.value && new Date(this.value) < new Date()) {
+                alert("Please select a future date and time.");
+                this.value = "";
+            }
+        });
     }
 
     // --- 2. CATEGORY DROPDOWN LISTENER ---
@@ -2518,6 +2607,119 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
+// ====== USER ARCHIVE ======
+async function loadUserArchive() {
+  const userType = document.getElementById("archiveUserTypeFilter")?.value || "all";
+  const tbody = document.querySelector("#userArchiveTable tbody");
+  tbody.innerHTML = "<tr><td colspan='6'>Loading...</td></tr>";
+
+  try {
+    const params = new URLSearchParams({ userType });
+    const res = await fetch(`${API_BASE}/admin/user-archive?${params}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data = await res.json();
+    tbody.innerHTML = "";
+
+    if (!data.records || data.records.length === 0) {
+      tbody.innerHTML = "<tr><td colspan='6' style='text-align:center; color:rgba(255,255,255,0.5);'>No archived users found.</td></tr>";
+      return;
+    }
+
+    data.records.forEach(record => {
+      const d = record.data;
+      const name  = d.fullName || d.name || "—";
+      const email = d.email || "—";
+      const extra = record.userType === "student"
+        ? (d.labID || "No Lab ID assigned")
+        : d.role?.toUpperCase() || "—";
+      const deletedAt = new Date(record.deletedAt).toLocaleString();
+
+      const isSuperAdmin = payload && payload.role === "superadmin";
+      const permDeleteBtn = isSuperAdmin
+        ? `<button class="reject" onclick="permanentDeleteUser('${record._id}')">Delete Forever</button>`
+        : "";
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${record.userType === "student" ? "Student" : "Admin"}</td>
+        <td>${name}</td>
+        <td>${email}</td>
+        <td>${extra}</td>
+        <td>${deletedAt}</td>
+        <td>
+          <button class="accept" onclick="restoreUser('${record._id}')">Restore</button>
+          ${permDeleteBtn}
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    console.error("User archive load error:", err);
+    tbody.innerHTML = "<tr><td colspan='6' style='color:red;'>Error loading archive.</td></tr>";
+  }
+}
+
+async function restoreUser(id) {
+  if (!confirm("Restore this user back into the system?")) return;
+  try {
+    const res = await fetch(`${API_BASE}/admin/user-archive/${id}/restore`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const result = await res.json();
+    if (res.ok) {
+      alert("User restored successfully!");
+      loadUserArchive();
+      loadPendingStudents();
+      loadActiveStudents();
+      if (payload?.role === "superadmin") loadAdmins();
+    } else {
+      alert("Error: " + result.message);
+    }
+  } catch (err) {
+    alert("Connection error during restore.");
+  }
+}
+
+async function permanentDeleteUser(id) {
+  if (!confirm("⚠️ This will PERMANENTLY erase this user record. This CANNOT be undone. Are you sure?")) return;
+  try {
+    const res = await fetch(`${API_BASE}/admin/user-archive/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const result = await res.json();
+    if (res.ok) {
+      alert("Permanently deleted.");
+      loadUserArchive();
+    } else {
+      alert("Error: " + result.message);
+    }
+  } catch (err) {
+    alert("Connection error.");
+  }
+}
+
+async function deleteStudent(id, name) {
+  if (!confirm(`Remove "${name}" from the system? They will be moved to the archive.`)) return;
+  try {
+    const res = await fetch(`${API_BASE}/admin/students/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const result = await res.json();
+    if (res.ok) {
+      alert("Student moved to archive.");
+      loadActiveStudents();
+      loadPendingStudents();
+    } else {
+      alert("Error: " + result.message);
+    }
+  } catch (err) {
+    alert("Connection error.");
+  }
+}
 
 // Run this automatically when the page loads to show the home dashboard
 showPage('home');
