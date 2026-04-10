@@ -41,8 +41,8 @@ async function sendMail({ to, subject, html }) {
   }
   try {
     const info = await transporter.sendMail({
-      from: `"DLSU-D Chemlab Stockroom" <${process.env.MAIL_USER}>`,
-      replyTo: process.env.MAIL_USER,
+      from: `"DLSU-D Chemlab Stockroom" <${process.env.MAIL_FROM_ADDRESS}>`,
+      replyTo: process.env.MAIL_FROM_ADDRESS,
       to,
       subject,
       html,
