@@ -56,7 +56,7 @@ mongoose.connect(MONGO, {
   startScheduler({ Borrowed, Student });  
   await verifyMailer();    
 
-  app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
+  app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
 }).catch(err => {
   console.error("❌ MongoDB connection error:", err.message);
 });
