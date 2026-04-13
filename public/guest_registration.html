@@ -5,6 +5,22 @@
   <title>Guest Registration - ChemLab</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <link rel="stylesheet" href="guest_registration.css">
+  <style>
+    .email-alert-banner {
+      background-color: #fff8e1;
+      border-left: 5px solid #f59e0b;
+      color: #78350f;
+      padding: 15px 20px;
+      margin-bottom: 20px;
+      border-radius: 4px;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .email-alert-banner strong {
+      color: #b45309;
+    }
+  </style>
 </head>
 <body>
 
@@ -18,6 +34,12 @@
 
   <div class="register-container">
     <h2>Guest Registration</h2>
+    
+    <div class="email-alert-banner">
+      <strong>💡 Quick Note About Emails:</strong><br>
+      Our automated system emails might occasionally land in your <strong>Spam or Junk folder</strong>. Please check there and mark us as "Not Spam" to ensure you receive future updates!
+    </div>
+
     <form id="reg">
       <label for="fullName">Full Name</label>
       <input id="fullName" name="fullName" placeholder="Enter your full name" required />
@@ -76,7 +98,6 @@
       msg.innerText = "Processing request...";
 
       try {
-        // Updated URL to /api/guest/register to match server.js
         const res = await fetch('/api/guest/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
