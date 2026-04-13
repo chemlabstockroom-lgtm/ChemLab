@@ -1037,6 +1037,181 @@ app.get("/api/admin/dashboard", authMiddleware, requireAdmin, async (req, res) =
   }
 });
 
+// ====== REPORTS API ======
+app.get("/api/admin/reports", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const { type, from, to } = req.query;
+
+    const fromDate = from ? new Date(from) : new Date("2000-01-01");
+    const toDate   = to   ? new Date(to)   : new Date();
+    toDate.setHours(23, 59, 59, 999);
+
+    // ── INVENTORY SUMMARY ──────────────────────────────────────────────────
+    if (type === "inventory" || !type) {
+      const [eq, ch, gl, fa] = await Promise.all([
+        Equipment.find().lean(),
+        Chemical.find().lean(),
+        Glassware.find().lean(),
+        FixedAsset.find().lean()
+      ]);
+
+      const summarize = (arr, nameFn) => ({
+        items: arr.map(i => ({
+          name:      nameFn(i),
+          specs:     i.specification || i.description || i.containerSize || "",
+          total:     i.quantity      || 0,
+          remaining: i.remainingQuantity ?? i.quantity ?? 0,
+          location:  i.location || "",
+          status:    (i.remainingQuantity ?? i.quantity ?? 0) <= 3 ? "Low Stock" : "OK"
+        })),
+        totalQty:     arr.reduce((s, i) => s + (Number(i.quantity) || 0), 0),
+        remainingQty: arr.reduce((s, i) => s + (Number(i.remainingQuantity ?? i.quantity) || 0), 0),
+        lowStockCount: arr.filter(i => (Number(i.remainingQuantity ?? i.quantity) || 0) <= 3).length
+      });
+
+      return res.json({
+        type: "inventory",
+        equipment:   summarize(eq,  i => i.itemName      || ""),
+        chemicals:   summarize(ch,  i => i.chemicalName  || ""),
+        glassware:   summarize(gl,  i => i.itemName      || ""),
+        fixedAssets: summarize(fa,  i => i.itemName      || ""),
+        generatedAt: new Date()
+      });
+    }
+
+    // ── BORROW ACTIVITY ────────────────────────────────────────────────────
+    if (type === "borrow") {
+      const borrows = await Borrowed.find({
+        borrowedAt: { $gte: fromDate, $lte: toDate }
+      })
+        .populate("studentId", "fullName labID email")
+        .populate("experimentId", "name")
+        .lean();
+
+      const rows = borrows.map(b => ({
+        studentName:    b.studentId?.fullName  || "Unknown",
+        labID:          b.studentId?.labID     || "—",
+        email:          b.studentId?.email     || "—",
+        experiment:     b.experimentId?.name   || b.experimentName || "—",
+        materialsCount: b.materialsUsed?.length || 0,
+        status:         b.status,
+        borrowedAt:     b.borrowedAt,
+        returnedAt:     b.returnedAt || null,
+        dueDate:        b.dueDate    || null
+      }));
+
+      const summary = {
+        total:    rows.length,
+        pending:  rows.filter(r => r.status === "pending").length,
+        borrowed: rows.filter(r => r.status === "borrowed").length,
+        returned: rows.filter(r => r.status === "returned").length,
+        rejected: rows.filter(r => r.status === "rejected").length
+      };
+
+      return res.json({ type: "borrow", summary, rows, generatedAt: new Date() });
+    }
+
+    // ── APPOINTMENTS ───────────────────────────────────────────────────────
+    if (type === "appointments") {
+      const appts = await Appointment.find({
+        date: { $gte: fromDate, $lte: toDate }
+      })
+        .populate("studentId", "fullName email")
+        .populate("guestId",   "fullName email")
+        .lean();
+
+      const rows = appts.map(a => ({
+        name:     a.studentId?.fullName || a.guestId?.fullName || a.studentName || "Manual Entry",
+        type:     a.guestId ? "Guest" : (a.studentId ? "Student" : "Manual"),
+        purpose:  a.purpose || "—",
+        date:     a.date,
+        timeSlot: a.timeSlot || "—",
+        status:   a.status,
+        cys:      a.cys || "—"
+      }));
+
+      const summary = {
+        total:    rows.length,
+        pending:  rows.filter(r => r.status === "pending").length,
+        approved: rows.filter(r => r.status === "approved").length,
+        accepted: rows.filter(r => r.status === "accepted").length,
+        returned: rows.filter(r => r.status === "returned").length,
+        rejected: rows.filter(r => r.status === "rejected").length
+      };
+
+      return res.json({ type: "appointments", summary, rows, generatedAt: new Date() });
+    }
+
+    // ── BREAKAGE / ACCOUNTABILITY ──────────────────────────────────────────
+    if (type === "breakage") {
+      const reports = await Breakage.find({
+        reportedAt: { $gte: fromDate, $lte: toDate }
+      }).lean();
+
+      const enriched = await Promise.all(reports.map(async b => {
+        const student = await Student.findOne({ labID: b.labID }).select("fullName email").lean();
+        return {
+          labID:      b.labID,
+          studentName: student?.fullName || "Unknown",
+          email:      student?.email || "—",
+          item:       b.item,
+          category:   b.category || "—",
+          qty:        b.quantityBroken || 1,
+          violation:  b.violation,
+          remarks:    b.remarks || "—",
+          status:     b.status,
+          reportedAt: b.reportedAt
+        };
+      }));
+
+      const summary = {
+        total:      enriched.length,
+        unresolved: enriched.filter(r => r.status !== "resolved").length,
+        resolved:   enriched.filter(r => r.status === "resolved").length,
+        totalQtyBroken: enriched.reduce((s, r) => s + r.qty, 0)
+      };
+
+      return res.json({ type: "breakage", summary, rows: enriched, generatedAt: new Date() });
+    }
+
+    // ── STUDENT ACTIVITY ───────────────────────────────────────────────────
+    if (type === "students") {
+      const students = await Student.find({ status: "active" }).lean();
+
+      const rows = await Promise.all(students.map(async s => {
+        const borrowCount  = await Borrowed.countDocuments({ studentId: s._id });
+        const breakageCount = await Breakage.countDocuments({ labID: s.labID });
+        const apptCount    = await Appointment.countDocuments({ studentId: s._id });
+        return {
+          fullName:      s.fullName,
+          labID:         s.labID,
+          email:         s.email,
+          cys:           s.cys,
+          professor:     s.professor,
+          classSchedule: s.classSchedule,
+          borrows:       borrowCount,
+          breakages:     breakageCount,
+          appointments:  apptCount,
+          registeredAt:  s.createdAt
+        };
+      }));
+
+      return res.json({
+        type: "students",
+        totalActive: rows.length,
+        rows,
+        generatedAt: new Date()
+      });
+    }
+
+    return res.status(400).json({ message: "Invalid report type. Use: inventory, borrow, appointments, breakage, students" });
+
+  } catch (err) {
+    console.error("Reports error:", err);
+    res.status(500).json({ message: "Error generating report" });
+  }
+});
+
 
 
 
