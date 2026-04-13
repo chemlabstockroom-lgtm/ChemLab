@@ -1,24 +1,19 @@
 // emailService.js
 // Handles all email notifications for ChemLab Inventory System
-// Supports Microsoft (Outlook/Office365) and standard SMTP
-// emailService.js
-require('dotenv').config(); // ← ADD THIS AS LINE 1
+require('dotenv').config();
 const nodemailer = require("nodemailer");
 
 // ====== TRANSPORTER SETUP ======
-// For @dlsud.edu.ph (Microsoft / Office 365), use these settings.
-// If your school uses a different mail server, update host/port accordingly.
 const transporter = nodemailer.createTransport({
-  host: process.env.MAIL_HOST || "in-v3.mailjet.com", // mailjet is for production.
-  port: parseInt(process.env.MAIL_PORT) || 2525,
-  secure: false, // true for port 465, false for 587 (STARTTLS)
+  host: process.env.MAIL_HOST || "smtp.gmail.com",
+  port: parseInt(process.env.MAIL_PORT) || 465,
+  secure: parseInt(process.env.MAIL_PORT) === 465, // true for port 465, false for 587
   auth: {
-    user: process.env.MAIL_USER,   // Your sender email, e.g. chemlab@dlsud.edu.ph
-    pass: process.env.MAIL_PASS    // App password or email password
+    user: process.env.MAIL_USER,
+    pass: process.env.MAIL_PASS 
   },
   tls: {
-    
-    rejectUnauthorized: false      // helping with university network filters
+    rejectUnauthorized: false // helps with university network filters
   }
 });
 
@@ -28,8 +23,8 @@ async function verifyMailer() {
     await transporter.verify();
     console.log("✅ Mail server connected and ready.");
   } catch (err) {
-    console.warn("⚠️  Mail server connection failed:", err.message);
-    console.warn("   Emails will be skipped. Check MAIL_HOST/USER/PASS in .env");
+    console.warn("⚠️ Mail server connection failed:", err.message);
+    console.warn("   Emails will be skipped. Check your .env credentials.");
   }
 }
 
@@ -47,13 +42,13 @@ async function sendMail({ to, subject, html }) {
       subject,
       html,
       headers: {
-      'X-Priority': '3',
-      'Importance': 'Normal'
+        'X-Priority': '3',
+        'Importance': 'Normal'
       }
     });
-    console.log(` Email sent to ${to}: ${info.messageId}`);
+    console.log(`📧 Email sent to ${to}: ${info.messageId}`);
   } catch (err) {
-    console.error(` Failed to send email to ${to}:`, err.message);
+    console.error(`❌ Failed to send email to ${to}:`, err.message);
   }
 }
 
@@ -102,11 +97,10 @@ function wrapEmail(bodyContent) {
 
 // ============================================================
 //  1. STUDENT REGISTRATION
-//     Sent immediately after a student creates their account.
 // ============================================================
 async function sendStudentRegistrationEmail({ to, fullName }) {
   const html = wrapEmail(`
-    <h2>Registration Received! </h2>
+    <h2>Registration Received! 📝</h2>
     <p>Hi <strong>${fullName}</strong>,</p>
     <p>Your account registration for the <strong>ChemLab Inventory System</strong> has been successfully submitted and is now pending approval.</p>
 
@@ -124,16 +118,11 @@ async function sendStudentRegistrationEmail({ to, fullName }) {
     </p>
   `);
 
-  await sendMail({
-    to,
-    subject: "ChemLab: Registration Received – Visit the Stockroom",
-    html
-  });
+  await sendMail({ to, subject: "ChemLab: Registration Received – Visit the Stockroom", html });
 }
 
 // ============================================================
-//  2. LAB ID ASSIGNED (Student Account Activated)
-//     Sent when admin assigns a Lab ID to a student.
+//  2. LAB ID ASSIGNED
 // ============================================================
 async function sendLabIDAssignedEmail({ to, fullName, labID }) {
   const html = wrapEmail(`
@@ -161,16 +150,11 @@ async function sendLabIDAssignedEmail({ to, fullName, labID }) {
     </p>
   `);
 
-  await sendMail({
-    to,
-    subject: `ChemLab: Your Lab ID is ${labID} – Account Activated`,
-    html
-  });
+  await sendMail({ to, subject: `ChemLab: Your Lab ID is ${labID} – Account Activated`, html });
 }
 
 // ============================================================
 //  2b. STUDENT REGISTRATION REJECTED
-//      Sent when admin rejects a student's registration.
 // ============================================================
 async function sendStudentRejectionEmail({ to, fullName }) {
   const html = wrapEmail(`
@@ -180,8 +164,7 @@ async function sendStudentRejectionEmail({ to, fullName }) {
 
     <div class="highlight-box">
       <strong>Account Status:</strong> <span class="badge badge-red">NOT APPROVED</span><br><br>
-      Your registration did not meet the current requirements or could not be verified 
-      at this time.
+      Your registration did not meet the current requirements or could not be verified at this time.
     </div>
 
     <p>If you believe this is a mistake or would like to clarify your registration details, please visit the <strong>Chemistry Laboratory Stockroom</strong> in person and speak with the Laboratory Technician.</p>
@@ -191,16 +174,11 @@ async function sendStudentRejectionEmail({ to, fullName }) {
     </p>
   `);
 
-  await sendMail({
-    to,
-    subject: "ChemLab: Registration Status Update",
-    html
-  });
+  await sendMail({ to, subject: "ChemLab: Registration Status Update", html });
 }
 
 // ============================================================
 //  3. GUEST REGISTRATION
-//     Sent when a guest creates their account.
 // ============================================================
 async function sendGuestRegistrationEmail({ to, fullName }) {
   const html = wrapEmail(`
@@ -227,38 +205,30 @@ async function sendGuestRegistrationEmail({ to, fullName }) {
     </p>
   `);
 
-  await sendMail({
-    to,
-    subject: "ChemLab: Guest Account Created Successfully",
-    html
-  });
+  await sendMail({ to, subject: "ChemLab: Guest Account Created Successfully", html });
 }
 
 // ============================================================
 //  4. BORROW STATUS UPDATE
-//     Sent when admin changes a borrow request status.
 // ============================================================
 async function sendBorrowStatusEmail({ to, fullName, experimentName, status, labID }) {
   const statusMessages = {
     borrowed: {
       badge: `<span class="badge badge-green">APPROVED & BORROWED</span>`,
       title: "Borrow Request Approved ✅",
-      message: `Your borrow request for <strong>${experimentName}</strong> has been <strong>approved</strong>. 
-                You may now collect the materials from the stockroom. Please remember to return all items on or before the due date.`,
+      message: `Your borrow request for <strong>${experimentName}</strong> has been <strong>approved</strong>. You may now collect the materials from the stockroom. Please remember to return all items on or before the due date.`,
       reminder: "Returning items late may result in penalties or suspension of borrowing privileges."
     },
     rejected: {
       badge: `<span class="badge badge-red">REJECTED</span>`,
       title: "Borrow Request Rejected ❌",
-      message: `Your borrow request for <strong>${experimentName}</strong> has been <strong>rejected</strong>. 
-                This may be due to insufficient stock or scheduling conflicts. Please contact the Laboratory Technician for more information.`,
+      message: `Your borrow request for <strong>${experimentName}</strong> has been <strong>rejected</strong>. This may be due to insufficient stock or scheduling conflicts. Please contact the Laboratory Technician for more information.`,
       reminder: "You may submit a new request after clarifying with the lab technician."
     },
     returned: {
       badge: `<span class="badge badge-blue">RETURNED</span>`,
       title: "Items Marked as Returned 🔄",
-      message: `Your borrowed items for <strong>${experimentName}</strong> have been marked as <strong>returned</strong>. 
-                Thank you for returning the materials on time and in good condition.`,
+      message: `Your borrowed items for <strong>${experimentName}</strong> have been marked as <strong>returned</strong>. Thank you for returning the materials on time and in good condition.`,
       reminder: "Your borrow record has been updated. Check the accountability page for your history."
     }
   };
@@ -279,16 +249,11 @@ async function sendBorrowStatusEmail({ to, fullName, experimentName, status, lab
     <p style="font-size:0.85rem; color:#666;"><em>${info.reminder}</em></p>
   `);
 
-  await sendMail({
-    to,
-    subject: `ChemLab: Borrow Request ${status.charAt(0).toUpperCase() + status.slice(1)} – ${experimentName}`,
-    html
-  });
+  await sendMail({ to, subject: `ChemLab: Borrow Request ${status.charAt(0).toUpperCase() + status.slice(1)} – ${experimentName}`, html });
 }
 
 // ============================================================
 //  5. BORROW DUE DATE REMINDER
-//     Sent by the cron job scheduler.
 // ============================================================
 async function sendBorrowDueDateEmail({ to, fullName, experimentName, dueDate, daysLeft, labID }) {
   const isOverdue = daysLeft < 0;
@@ -317,18 +282,14 @@ async function sendBorrowDueDateEmail({ to, fullName, experimentName, dueDate, d
     <p><strong>Reminder:</strong> All items must be returned clean, dry, and in good condition at least 30 minutes before the end of the laboratory period.</p>
   `);
 
-  await sendMail({
-    to,
-    subject: isOverdue
-      ? `ChemLab: OVERDUE Return – ${experimentName}`
-      : `ChemLab: Return Reminder – ${experimentName} (${daysLeft === 0 ? "Due Today" : `${daysLeft} day(s) left`})`,
-    html
-  });
+  const subjectPrefix = isOverdue ? "OVERDUE Return" : "Return Reminder";
+  const subjectSuffix = isOverdue ? "" : ` (${daysLeft === 0 ? "Due Today" : `${daysLeft} day(s) left`})`;
+  
+  await sendMail({ to, subject: `ChemLab: ${subjectPrefix} – ${experimentName}${subjectSuffix}`, html });
 }
 
 // ============================================================
-//  6. APPOINTMENT STATUS UPDATE (Student & Guest)
-//     Sent when admin changes an appointment status.
+//  6. APPOINTMENT STATUS UPDATE
 // ============================================================
 async function sendAppointmentStatusEmail({ to, fullName, date, timeSlot, purpose, status, rejectionReason }) {
   const formattedDate = new Date(date).toLocaleDateString("en-PH", {
@@ -383,16 +344,11 @@ async function sendAppointmentStatusEmail({ to, fullName, date, timeSlot, purpos
     ${info.extra}
   `);
 
-  await sendMail({
-    to,
-    subject: `ChemLab: Appointment ${status.charAt(0).toUpperCase() + status.slice(1)} – ${formattedDate}`,
-    html
-  });
+  await sendMail({ to, subject: `ChemLab: Appointment ${status.charAt(0).toUpperCase() + status.slice(1)} – ${formattedDate}`, html });
 }
 
 // ============================================================
-//  7. GUEST APPOINTMENT BOOKED CONFIRMATION
-//     Sent right when a guest successfully books an appointment.
+//  7. GUEST APPOINTMENT CONFIRMATION
 // ============================================================
 async function sendGuestAppointmentConfirmEmail({ to, fullName, date, timeSlot, purpose, itemsRequested }) {
   const formattedDate = new Date(date).toLocaleDateString("en-PH", {
@@ -432,39 +388,31 @@ async function sendGuestAppointmentConfirmEmail({ to, fullName, date, timeSlot, 
     <p>If you need to cancel or modify your appointment, please contact the lab directly.</p>
   `);
 
-  await sendMail({
-    to,
-    subject: "ChemLab: Appointment Request Received – Pending Review",
-    html
-  });
+  await sendMail({ to, subject: "ChemLab: Appointment Request Received – Pending Review", html });
 }
 
 // ============================================================
-//  8. FORGOT PASSWORD - TEMPORARY PASSWORD
-//     Sent when a user requests a password reset.
-//     Contains a temporary password and instructions.
-//     Valid for 1 hour only.
+//  8. FORGOT PASSWORD
 // ============================================================
- 
 async function sendPasswordResetEmail({ to, fullName, tempPassword, role }) {
   const roleLabel = role === "admin" ? "Admin" : role === "student" ? "Student" : "Guest";
- 
+  
   const loginHint = role === "student"
     ? `<p>Log in using your <strong>Lab ID</strong> and the temporary password above.</p>`
     : `<p>Log in using your <strong>registered email</strong> and the temporary password above.</p>`;
- 
+  
   const html = wrapEmail(`
     <h2>Password Reset Request 🔑</h2>
     <p>Hi <strong>${fullName}</strong>,</p>
     <p>We received a request to reset the password for your <strong>${roleLabel} account</strong> on the ChemLab Inventory System.</p>
- 
+  
     <div class="highlight-box">
       <strong>Your Temporary Password:</strong><br><br>
       <span style="font-size: 1.6rem; font-weight: bold; color: #1a4d2e; letter-spacing: 4px; font-family: monospace;">${tempPassword}</span>
     </div>
- 
+  
     ${loginHint}
- 
+  
     <div style="background:#fff8e1; border-left:4px solid #f59e0b; border-radius:0 6px 6px 0; padding:13px 18px; margin:18px 0;">
       <strong style="color:#92400e;">⚠️ Important Security Notice</strong><br>
       <ul style="margin:8px 0 0; padding-left:20px; color:#78350f; font-size:0.9rem; line-height:1.7;">
@@ -474,12 +422,8 @@ async function sendPasswordResetEmail({ to, fullName, tempPassword, role }) {
       </ul>
     </div>
   `);
- 
-  await sendMail({
-    to,
-    subject: "ChemLab: Your Temporary Password",
-    html
-  });
+  
+  await sendMail({ to, subject: "ChemLab: Your Temporary Password", html });
 }
   
 module.exports = {
