@@ -3,6 +3,11 @@
 require('dotenv').config();
 const nodemailer = require("nodemailer");
 
+// 👇 --- ADD THESE TWO LINES --- 👇
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first'); 
+// 👆 --------------------------- 👆
+
 // ====== TRANSPORTER SETUP ======
 const transporter = nodemailer.createTransport({
   host: process.env.MAIL_HOST || "smtp.gmail.com",
