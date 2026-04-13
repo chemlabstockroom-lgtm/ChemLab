@@ -113,6 +113,8 @@ function showPage(id) {
     case "archive":
       loadUserArchive();
       break;
+    case "reports":
+      break;
   }
 }
 
@@ -2719,6 +2721,322 @@ async function deleteStudent(id, name) {
   } catch (err) {
     alert("Connection error.");
   }
+}
+
+// ====== REPORTS ======
+let currentReportData = null;
+let currentReportType = null;
+
+// Set default date range (last 30 days) when the page loads
+document.addEventListener("DOMContentLoaded", () => {
+  const today = new Date();
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(today.getDate() - 30);
+
+  const fmt = d => d.toISOString().split("T")[0];
+  const fromInput = document.getElementById("reportFrom");
+  const toInput   = document.getElementById("reportTo");
+  if (fromInput) fromInput.value = fmt(thirtyDaysAgo);
+  if (toInput)   toInput.value   = fmt(today);
+});
+
+async function generateReport() {
+  const type = document.getElementById("reportType").value;
+  const from = document.getElementById("reportFrom").value;
+  const to   = document.getElementById("reportTo").value;
+
+  const container   = document.getElementById("reportTableContainer");
+  const summaryDiv  = document.getElementById("reportSummaryCards");
+  const summaryContent = document.getElementById("reportSummaryContent");
+  const genAtP      = document.getElementById("reportGeneratedAt");
+
+  container.innerHTML = "<p style='color:rgba(255,255,255,0.5);'>Generating report...</p>";
+  summaryDiv.style.display = "none";
+  document.getElementById("exportReportCSV").style.display = "none";
+  document.getElementById("exportReportExcel").style.display = "none";
+
+  try {
+    const params = new URLSearchParams({ type, from, to });
+    const res = await fetch(`${API_BASE}/admin/reports?${params}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      container.innerHTML = `<p style="color:#f87171;">Error: ${data.message}</p>`;
+      return;
+    }
+
+    currentReportData = data;
+    currentReportType = type;
+
+    genAtP.textContent = `Generated at: ${new Date(data.generatedAt).toLocaleString()}`;
+
+    // ── Show summary cards ──────────────────────────────────────────────
+    summaryContent.innerHTML = "";
+
+    const makeCard = (label, value, sub = "") => `
+      <div style="background:rgba(255,255,255,0.06);border-radius:8px;padding:14px 18px;min-width:130px;">
+        <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:6px;">${label}</div>
+        <div style="font-size:22px;font-weight:500;">${value}</div>
+        ${sub ? `<div style="font-size:11px;color:rgba(255,255,255,0.35);margin-top:3px;">${sub}</div>` : ""}
+      </div>`;
+
+    if (type === "inventory") {
+      const cats = ["equipment", "chemicals", "glassware", "fixedAssets"];
+      const labels = ["Equipment", "Chemicals", "Glassware", "Fixed Assets"];
+      let totalAll = 0, remAll = 0, lowAll = 0;
+      cats.forEach(c => {
+        totalAll += data[c].totalQty;
+        remAll   += data[c].remainingQty;
+        lowAll   += data[c].lowStockCount;
+      });
+      summaryContent.innerHTML =
+        makeCard("Total qty", totalAll.toLocaleString()) +
+        makeCard("Available", remAll.toLocaleString()) +
+        makeCard("Low stock items", lowAll, "≤ 3 units remaining");
+    } else if (type === "borrow") {
+      const s = data.summary;
+      summaryContent.innerHTML =
+        makeCard("Total requests", s.total) +
+        makeCard("Borrowed", s.borrowed) +
+        makeCard("Returned", s.returned) +
+        makeCard("Pending", s.pending) +
+        makeCard("Rejected", s.rejected);
+    } else if (type === "appointments") {
+      const s = data.summary;
+      summaryContent.innerHTML =
+        makeCard("Total", s.total) +
+        makeCard("Pending", s.pending) +
+        makeCard("Approved", s.approved) +
+        makeCard("Accepted", s.accepted) +
+        makeCard("Returned", s.returned) +
+        makeCard("Rejected", s.rejected);
+    } else if (type === "breakage") {
+      const s = data.summary;
+      summaryContent.innerHTML =
+        makeCard("Total reports", s.total) +
+        makeCard("Unresolved", s.unresolved) +
+        makeCard("Resolved", s.resolved) +
+        makeCard("Total qty broken", s.totalQtyBroken);
+    } else if (type === "students") {
+      summaryContent.innerHTML = makeCard("Active students", data.totalActive);
+    }
+
+    summaryDiv.style.display = "block";
+
+    // ── Build the table ────────────────────────────────────────────────
+    container.innerHTML = buildReportTable(type, data);
+
+    document.getElementById("exportReportCSV").style.display = "inline-block";
+    document.getElementById("exportReportExcel").style.display = "inline-block";
+
+  } catch (err) {
+    console.error("Report error:", err);
+    container.innerHTML = "<p style='color:#f87171;'>Connection error generating report.</p>";
+  }
+}
+
+function buildReportTable(type, data) {
+  const tableStyle = `
+    style="width:100%;border-collapse:collapse;font-size:13px;"`;
+  const thStyle = `style="text-align:left;padding:8px 10px;font-size:12px;color:rgba(255,255,255,0.5);border-bottom:1px solid rgba(255,255,255,0.1);white-space:nowrap;"`;
+  const tdStyle = `style="padding:7px 10px;border-bottom:1px solid rgba(255,255,255,0.06);"`;
+
+  const statusBadge = s => {
+    const map = {
+      borrowed: "#378ADD", returned: "#1D9E75", pending: "#EF9F27",
+      rejected: "#D85A30", approved: "#1D9E75", accepted: "#1D9E75",
+      resolved: "#1D9E75", unresolved: "#D85A30", OK: "#1D9E75",
+      "Low Stock": "#D85A30"
+    };
+    const col = map[s] || "#888";
+    return `<span style="padding:2px 8px;border-radius:99px;font-size:11px;background:${col}22;color:${col};">${s}</span>`;
+  };
+
+  const fmtDate = d => d ? new Date(d).toLocaleDateString() : "—";
+
+  if (type === "inventory") {
+    const cats = ["equipment", "chemicals", "glassware", "fixedAssets"];
+    const labels = ["Equipment", "Chemicals", "Glassware", "Fixed Assets"];
+    let html = "";
+    cats.forEach((c, i) => {
+      const items = data[c].items;
+      html += `<h3 style="margin:18px 0 10px;font-size:15px;font-weight:500;">${labels[i]}
+        <span style="font-size:12px;color:rgba(255,255,255,0.4);font-weight:400;margin-left:8px;">
+          Total: ${data[c].totalQty} | Remaining: ${data[c].remainingQty} | Low stock: ${data[c].lowStockCount}
+        </span></h3>`;
+      html += `<table ${tableStyle}><thead><tr>
+        <th ${thStyle}>Name</th><th ${thStyle}>Specs</th>
+        <th ${thStyle}>Location</th><th ${thStyle}>Total</th>
+        <th ${thStyle}>Remaining</th><th ${thStyle}>Status</th>
+        </tr></thead><tbody>`;
+      items.forEach(item => {
+        html += `<tr>
+          <td ${tdStyle}>${item.name}</td>
+          <td ${tdStyle}>${item.specs || "—"}</td>
+          <td ${tdStyle}>${item.location || "—"}</td>
+          <td ${tdStyle}>${item.total}</td>
+          <td ${tdStyle}>${item.remaining}</td>
+          <td ${tdStyle}>${statusBadge(item.status)}</td>
+        </tr>`;
+      });
+      html += "</tbody></table>";
+    });
+    return html;
+  }
+
+  if (type === "borrow") {
+    let html = `<table ${tableStyle}><thead><tr>
+      <th ${thStyle}>Student</th><th ${thStyle}>Lab ID</th>
+      <th ${thStyle}>Experiment</th><th ${thStyle}>Materials</th>
+      <th ${thStyle}>Borrowed</th><th ${thStyle}>Due</th>
+      <th ${thStyle}>Returned</th><th ${thStyle}>Status</th>
+      </tr></thead><tbody>`;
+    data.rows.forEach(r => {
+      html += `<tr>
+        <td ${tdStyle}>${r.studentName}</td>
+        <td ${tdStyle}>${r.labID}</td>
+        <td ${tdStyle}>${r.experiment}</td>
+        <td ${tdStyle}>${r.materialsCount}</td>
+        <td ${tdStyle}>${fmtDate(r.borrowedAt)}</td>
+        <td ${tdStyle}>${fmtDate(r.dueDate)}</td>
+        <td ${tdStyle}>${fmtDate(r.returnedAt)}</td>
+        <td ${tdStyle}>${statusBadge(r.status)}</td>
+      </tr>`;
+    });
+    return html + "</tbody></table>";
+  }
+
+  if (type === "appointments") {
+    let html = `<table ${tableStyle}><thead><tr>
+      <th ${thStyle}>Name</th><th ${thStyle}>Type</th>
+      <th ${thStyle}>Purpose</th><th ${thStyle}>CYS</th>
+      <th ${thStyle}>Date</th><th ${thStyle}>Time Slot</th>
+      <th ${thStyle}>Status</th>
+      </tr></thead><tbody>`;
+    data.rows.forEach(r => {
+      html += `<tr>
+        <td ${tdStyle}>${r.name}</td>
+        <td ${tdStyle}>${r.type}</td>
+        <td ${tdStyle}>${r.purpose}</td>
+        <td ${tdStyle}>${r.cys}</td>
+        <td ${tdStyle}>${fmtDate(r.date)}</td>
+        <td ${tdStyle}>${r.timeSlot}</td>
+        <td ${tdStyle}>${statusBadge(r.status)}</td>
+      </tr>`;
+    });
+    return html + "</tbody></table>";
+  }
+
+  if (type === "breakage") {
+    let html = `<table ${tableStyle}><thead><tr>
+      <th ${thStyle}>Lab ID</th><th ${thStyle}>Student</th>
+      <th ${thStyle}>Item</th><th ${thStyle}>Category</th>
+      <th ${thStyle}>Qty</th><th ${thStyle}>Violation</th>
+      <th ${thStyle}>Remarks</th><th ${thStyle}>Date</th>
+      <th ${thStyle}>Status</th>
+      </tr></thead><tbody>`;
+    data.rows.forEach(r => {
+      html += `<tr>
+        <td ${tdStyle}>${r.labID}</td>
+        <td ${tdStyle}>${r.studentName}</td>
+        <td ${tdStyle}>${r.item}</td>
+        <td ${tdStyle}>${r.category}</td>
+        <td ${tdStyle}>${r.qty}</td>
+        <td ${tdStyle}>${r.violation}</td>
+        <td ${tdStyle}>${r.remarks}</td>
+        <td ${tdStyle}>${fmtDate(r.reportedAt)}</td>
+        <td ${tdStyle}>${statusBadge(r.status)}</td>
+      </tr>`;
+    });
+    return html + "</tbody></table>";
+  }
+
+  if (type === "students") {
+    let html = `<table ${tableStyle}><thead><tr>
+      <th ${thStyle}>Name</th><th ${thStyle}>Lab ID</th>
+      <th ${thStyle}>Email</th><th ${thStyle}>CYS</th>
+      <th ${thStyle}>Professor</th><th ${thStyle}>Schedule</th>
+      <th ${thStyle}>Borrows</th><th ${thStyle}>Breakages</th>
+      <th ${thStyle}>Appointments</th><th ${thStyle}>Registered</th>
+      </tr></thead><tbody>`;
+    data.rows.forEach(r => {
+      html += `<tr>
+        <td ${tdStyle}>${r.fullName}</td>
+        <td ${tdStyle}>${r.labID}</td>
+        <td ${tdStyle}>${r.email}</td>
+        <td ${tdStyle}>${r.cys}</td>
+        <td ${tdStyle}>${r.professor}</td>
+        <td ${tdStyle}>${r.classSchedule}</td>
+        <td ${tdStyle}>${r.borrows}</td>
+        <td ${tdStyle}>${r.breakages}</td>
+        <td ${tdStyle}>${r.appointments}</td>
+        <td ${tdStyle}>${fmtDate(r.registeredAt)}</td>
+      </tr>`;
+    });
+    return html + "</tbody></table>";
+  }
+
+  return "<p>Unknown report type.</p>";
+}
+
+function flattenReportRows(data, type) {
+  if (type === "inventory") {
+    const cats = ["equipment", "chemicals", "glassware", "fixedAssets"];
+    const labels = ["Equipment", "Chemicals", "Glassware", "Fixed Assets"];
+    let all = [];
+    cats.forEach((c, i) => {
+      data[c].items.forEach(item => {
+        all.push({ category: labels[i], ...item });
+      });
+    });
+    return all;
+  }
+  return data.rows || [];
+}
+
+function exportReportCSV() {
+  if (!currentReportData) return alert("Generate a report first.");
+  const rows = flattenReportRows(currentReportData, currentReportType);
+  if (!rows.length) return alert("No data to export.");
+
+  const keys = Object.keys(rows[0]);
+  const header = keys.join(",");
+  const body = rows.map(r =>
+    keys.map(k => `"${String(r[k] ?? "").replace(/"/g, '""')}"`).join(",")
+  ).join("\n");
+
+  const blob = new Blob([header + "\n" + body], { type: "text/csv;charset=utf-8;" });
+  const url  = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `report_${currentReportType}_${new Date().toISOString().split("T")[0]}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+function exportReportExcel() {
+  if (!currentReportData) return alert("Generate a report first.");
+
+  const wb = XLSX.utils.book_new();
+
+  if (currentReportType === "inventory") {
+    const cats = ["equipment", "chemicals", "glassware", "fixedAssets"];
+    const labels = ["Equipment", "Chemicals", "Glassware", "Fixed Assets"];
+    cats.forEach((c, i) => {
+      const ws = XLSX.utils.json_to_sheet(currentReportData[c].items);
+      XLSX.utils.book_append_sheet(wb, ws, labels[i]);
+    });
+  } else {
+    const rows = currentReportData.rows || [];
+    const ws   = XLSX.utils.json_to_sheet(rows);
+    XLSX.utils.book_append_sheet(wb, ws, currentReportType);
+  }
+
+  const date = new Date().toISOString().split("T")[0];
+  XLSX.writeFile(wb, `report_${currentReportType}_${date}.xlsx`);
 }
 
 // Run this automatically when the page loads to show the home dashboard

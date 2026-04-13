@@ -83,6 +83,12 @@
         </li>
 
         <li>
+          <button onclick="showPage('reports')">
+            <i class="fa-solid fa-chart-bar"></i> <span>Reports</span>
+          </button>
+        </li>
+
+        <li>
           <button onclick="showPage('profile')">
             <i class="fa-solid fa-user"></i> <span>My Profile</span>
           </button>
@@ -1297,6 +1303,45 @@
       <tr><td colspan="6" style="text-align:center;">Loading...</td></tr>
     </tbody>
   </table>
+</section>
+
+<!-- REPORTS -->
+<section id="reports" class="page hidden">
+  <h2>Reports</h2>
+
+  <div class="filter-bar" style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:20px;">
+    <div>
+      <label style="font-size:13px;color:rgba(255,255,255,0.6);display:block;margin-bottom:4px;">Report Type</label>
+      <select id="reportType" style="padding:8px 12px;border-radius:6px;">
+        <option value="inventory">Inventory Summary</option>
+        <option value="borrow">Borrow Activity</option>
+        <option value="appointments">Appointments</option>
+        <option value="breakage">Breakage / Accountability</option>
+        <option value="students">Student Activity</option>
+      </select>
+    </div>
+    <div>
+      <label style="font-size:13px;color:rgba(255,255,255,0.6);display:block;margin-bottom:4px;">From</label>
+      <input type="date" id="reportFrom" style="padding:8px 12px;border-radius:6px;">
+    </div>
+    <div>
+      <label style="font-size:13px;color:rgba(255,255,255,0.6);display:block;margin-bottom:4px;">To</label>
+      <input type="date" id="reportTo" style="padding:8px 12px;border-radius:6px;">
+    </div>
+    <button onclick="generateReport()" style="padding:8px 18px;border-radius:6px;background:#3F567F;color:#fff;border:none;cursor:pointer;">Generate Report</button>
+    <button onclick="exportReportCSV()" id="exportReportCSV" style="padding:8px 18px;border-radius:6px;background:#1D9E75;color:#fff;border:none;cursor:pointer;display:none;">Export CSV</button>
+    <button onclick="exportReportExcel()" id="exportReportExcel" style="padding:8px 18px;border-radius:6px;background:#378ADD;color:#fff;border:none;cursor:pointer;display:none;">Export Excel</button>
+  </div>
+
+  <!-- Summary cards -->
+  <div id="reportSummaryCards" style="display:none;margin-bottom:20px;">
+    <div id="reportSummaryContent" style="display:flex;flex-wrap:wrap;gap:12px;"></div>
+  </div>
+
+  <!-- Report table output -->
+  <div id="reportTableContainer" style="overflow-x:auto;"></div>
+
+  <p id="reportGeneratedAt" style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:12px;"></p>
 </section>
 
 
