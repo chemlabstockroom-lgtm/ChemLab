@@ -1048,6 +1048,7 @@
       <section id="experiments" class="page hidden">
         <h2>Experiments</h2>
         <button onclick="openExperimentModal()">+ Add Experiment</button>
+        <div id="experimentsGrid" style="display: grid; grid-template-columns: repeat(auto-fill,minmax(220px,1fr)); gap:14px; margin-top:20px;"></div>
 
         <table id="experimentsTable">
           <thead>
@@ -1139,6 +1140,31 @@
             </form>
           </div>
         </div>
+
+        <div id="experimentDetailModal" class="modal hidden">
+  <div class="modal-form" style="max-width:560px;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <div>
+        <h3 id="detailExpName" style="margin-bottom:4px;"></h3>
+        <p id="detailExpCourse" style="color:rgba(255,255,255,0.5); margin:0 0 20px; font-size:0.9rem;"></p>
+      </div>
+      <button type="button" onclick="closeExperimentDetailModal()" style="padding:6px 12px; margin:0;">✕</button>
+    </div>
+
+    <label>Description</label>
+    <p id="detailExpDesc" style="color:rgba(255,255,255,0.7); font-size:0.9rem; margin:0 0 20px;"></p>
+
+    <label>Materials</label>
+    <div id="detailExpMaterials"></div>
+
+    <div class="modal-actions" style="margin-top:20px;">
+      <button type="button" onclick="addMaterialFromDetail()">+ Add Material</button>
+      <button type="button" onclick="editFromDetail()">Edit</button>
+      <button type="button" class="reject" onclick="deleteFromDetail()">Delete</button>
+    </div>
+  </div>
+</div>
+
       </section>
 
       <!-- MANAGE ADMINS -->

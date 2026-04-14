@@ -1904,31 +1904,125 @@ function renderMaterialsTwoColumn(materials) {
 
 
 // ====== EXPERIMENTS ======
+// Store the currently viewed experiment ID for the detail modal
+let currentDetailExpId = null;
+
 async function loadExperiments() {
   const res = await fetch(`${API_BASE}/admin/experiments`, {
     headers: { Authorization: `Bearer ${token}` }
   });
   const data = await res.json();
-  const tbody = document.querySelector("#experimentsTable tbody");
-  tbody.innerHTML = "";
+  const grid = document.getElementById("experimentsGrid");
+  grid.innerHTML = "";
+
+  if (!data.experiments.length) {
+    grid.innerHTML = `<p style="color:rgba(255,255,255,0.4);">No experiments yet. Add one to get started.</p>`;
+    return;
+  }
 
   data.experiments.forEach(exp => {
-    const materialsHtml = renderMaterialsTwoColumn(exp.materials);
-
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${exp.name}</td>
-      <td>${exp.course}</td>
-      <td>${exp.description}</td>
-      <td>${materialsHtml}</td>
-      <td>
-        <button onclick="showMaterialForm('${exp._id}')">+ Material</button>
-        <button onclick="deleteExperiment('${exp._id}')">Delete</button>
-      </td>
+    const matCount = (exp.materials || []).length;
+    const tile = document.createElement("div");
+    tile.style.cssText = `
+      background: rgba(0,43,22,0.6);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px;
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.25s ease;
     `;
-    tbody.appendChild(tr);
+    tile.onmouseenter = () => {
+      tile.style.background = "rgba(0,70,32,0.8)";
+      tile.style.borderColor = "rgba(255,215,0,0.4)";
+      tile.style.transform = "translateY(-4px)";
+    };
+    tile.onmouseleave = () => {
+      tile.style.background = "rgba(0,43,22,0.6)";
+      tile.style.borderColor = "rgba(255,255,255,0.1)";
+      tile.style.transform = "translateY(0)";
+    };
+    tile.innerHTML = `
+      <span style="font-size:11px; font-weight:600; background:rgba(255,215,0,0.15); color:#FFD700; border-radius:99px; padding:3px 10px; display:inline-block; margin-bottom:10px;">
+        ${exp.course || "No course"}
+      </span>
+      <p style="font-size:15px; font-weight:600; color:#ffffff; margin:0 0 6px; line-height:1.3;">${exp.name}</p>
+      <p style="font-size:13px; color:rgba(255,255,255,0.5); margin:0 0 14px;">${exp.description || "No description"}</p>
+      <span style="font-size:12px; color:rgba(255,255,255,0.35);">
+        ● ${matCount} material${matCount !== 1 ? "s" : ""}
+      </span>
+    `;
+    tile.onclick = () => openExperimentDetail(exp);
+    grid.appendChild(tile);
   });
 }
+
+function openExperimentDetail(exp) {
+  currentDetailExpId = exp._id;
+  document.getElementById("detailExpName").textContent = exp.name;
+  document.getElementById("detailExpCourse").textContent = exp.course || "";
+  document.getElementById("detailExpDesc").textContent = exp.description || "No description provided.";
+
+  const matDiv = document.getElementById("detailExpMaterials");
+  const mats = exp.materials || [];
+  if (!mats.length) {
+    matDiv.innerHTML = `<p style="color:rgba(255,255,255,0.4); font-size:0.9rem;">No materials added yet.</p>`;
+  } else {
+    matDiv.innerHTML = mats.map(m => `
+      <div style="display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.07); font-size:13px;">
+        <span style="background:rgba(255,255,255,0.1); border-radius:6px; padding:2px 8px; font-size:12px; color:rgba(255,255,255,0.6); min-width:28px; text-align:center;">${m.qty ?? 1}x</span>
+        <span style="color:#fff; flex:1;">${m.item}</span>
+        <span style="font-size:11px; color:rgba(255,255,255,0.35);">${m.category || ""}</span>
+      </div>
+    `).join("");
+  }
+
+  document.getElementById("experimentDetailModal").classList.remove("hidden");
+}
+
+function closeExperimentDetailModal() {
+  document.getElementById("experimentDetailModal").classList.add("hidden");
+  currentDetailExpId = null;
+}
+
+function addMaterialFromDetail() {
+  const expId = currentDetailExpId;
+  closeExperimentDetailModal();
+  showMaterialForm(expId);
+}
+
+function editFromDetail() {
+  if (!currentDetailExpId) return;
+
+  const expId = currentDetailExpId;
+  // Fetch the current experiment data to pre-fill the edit form
+  fetch(`${API_BASE}/admin/experiments`, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+  .then(res => res.json())
+  .then(data => {
+    const exp = data.experiments.find(e => e._id === expId);
+    if (!exp) return alert("Experiment not found.");
+
+    // Pre-fill the existing add/edit modal
+    document.getElementById("experimentModalTitle").textContent = "Edit Experiment";
+    document.getElementById("editExpId").value = exp._id;
+    document.getElementById("expName").value = exp.name;
+    document.getElementById("expCourse").value = exp.course || "";
+    document.getElementById("expDesc").value = exp.description || "";
+
+    // Close detail modal, open edit modal
+    closeExperimentDetailModal();
+    document.getElementById("experimentModal").classList.remove("hidden");
+  })
+  .catch(() => alert("Failed to load experiment data."));
+}
+
+function deleteFromDetail() {
+  if (currentDetailExpId) deleteExperiment(currentDetailExpId);
+  closeExperimentDetailModal();
+}
+
+
 
 // ===== MODAL FOR ADDING EXPERIMENT =====
 function openExperimentModal() {
@@ -1937,21 +2031,29 @@ function openExperimentModal() {
 
 function closeExperimentModal() {
   document.getElementById("experimentModal").classList.add("hidden");
+  document.getElementById("editExpId").value = "";
   const errDiv = document.getElementById("experimentError");
   if (errDiv) { errDiv.style.display = "none"; errDiv.innerText = ""; }
 }
+
 
 document.addEventListener("DOMContentLoaded", () => {
   const expForm = document.getElementById("addExperimentForm");
   if (expForm) {
     expForm.addEventListener("submit", async (e) => {
       e.preventDefault();
+      const id = document.getElementById("editExpId").value;
       const name = document.getElementById("expName").value;
       const course = document.getElementById("expCourse").value;
       const description = document.getElementById("expDesc").value;
 
-      const res = await fetch(`${API_BASE}/admin/experiments`, {
-        method: "POST",
+      const method = id ? "PUT" : "POST";
+      const url = id
+        ? `${API_BASE}/admin/experiments/${id}`
+        : `${API_BASE}/admin/experiments`;
+
+      const res = await fetch(url, {
+        method,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`
@@ -1961,7 +2063,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (res.ok) {
         closeExperimentModal();
-        expForm.reset();
+        document.getElementById("addExperimentForm").reset();
+        document.getElementById("editExpId").value = "";
         loadExperiments();
       } else {
         const result = await res.json();
@@ -1978,6 +2081,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 });
+
 
 
 async function deleteExperiment(id) {

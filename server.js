@@ -613,6 +613,26 @@ app.post("/api/admin/experiments", authMiddleware, requireAdmin, async (req, res
   res.json({ message: "Experiment created", experiment: exp });
 });
 
+// Update experiment
+app.put("/api/admin/experiments/:id", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const { name, course, description } = req.body;
+    if (!name) return res.status(400).json({ message: "Name required" });
+    
+    const exp = await Experiment.findByIdAndUpdate(
+      req.params.id,
+      { name, course, description },
+      { new: true }
+    );
+    
+    if (!exp) return res.status(404).json({ message: "Experiment not found" });
+    res.json({ message: "Experiment updated", experiment: exp });
+  } catch (err) {
+    console.error("Update experiment error:", err);
+    res.status(500).json({ message: "Error updating experiment" });
+  }
+});
+
 // Delete experiment
 app.delete("/api/admin/experiments/:id", authMiddleware, requireAdmin, async (req, res) => {
   await Experiment.findByIdAndDelete(req.params.id);
