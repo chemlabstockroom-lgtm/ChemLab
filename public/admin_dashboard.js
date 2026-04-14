@@ -2301,11 +2301,118 @@ document.addEventListener("DOMContentLoaded", () => {
 // Function to bind data to the specific export button
 function setupExportButton(buttonId, data, filename) {
   const btn = document.getElementById(buttonId);
-  if (btn) {
-    // Overwrite previous click events to ensure we use the latest fetched data
-    btn.onclick = () => downloadCSV(data, filename);
-  }
+  if (!btn) return;
+
+  // Map filename prefix to category key for the styled builder
+  const categoryMap = {
+    "equipment_inventory":   "equipment",
+    "chemicals_inventory":   "chemicals",
+    "glassware_inventory":   "glassware",
+    "fixed_assets_inventory": "fixedAssets",
+  };
+
+  const labelMap = {
+    "equipment_inventory":   "Equipment",
+    "chemicals_inventory":   "Chemicals",
+    "glassware_inventory":   "Glassware",
+    "fixed_assets_inventory": "Fixed Assets",
+  };
+
+  btn.onclick = () => {
+    if (!data || data.length === 0) return alert("No data to export.");
+    exportSingleInventorySheet(data, filename, labelMap[filename] || filename);
+  };
 }
+
+function exportSingleInventorySheet(data, filename, sheetLabel) {
+  const wb = XLSX.utils.book_new();
+  const date = new Date().toISOString().split("T")[0];
+  const generatedAt = new Date().toLocaleString();
+
+  // ── palette ──────────────────────────────────────────────────────────────
+  const C = {
+    navy:    { rgb: "1A2F5A" },
+    white:   { rgb: "FFFFFF" },
+    slate:   { rgb: "2E4A7A" },
+    colHdr:  { rgb: "D6E4F0" },
+    colHdrF: { rgb: "1A2F5A" },
+    meta:    { rgb: "EBF2FA" },
+    metaF:   { rgb: "2E4A7A" },
+    rowAlt:  { rgb: "F5F9FD" },
+    rowBase: { rgb: "FFFFFF" },
+    border:  { rgb: "BDD4E8" },
+    italic:  { rgb: "666666" },
+  };
+
+  const thin      = (color) => ({ style: "thin", color });
+  const allBorders = (color) => ({ top: thin(color), bottom: thin(color), left: thin(color), right: thin(color) });
+  const font      = (opts = {}) => ({ name: "Arial", sz: opts.sz || 10, ...opts });
+  const align     = (h = "center", v = "center", wrap = false) => ({ horizontal: h, vertical: v, wrapText: wrap });
+
+  const s = {
+    title:        { font: font({ bold: true, sz: 16, color: C.white }),   fill: { patternType: "solid", fgColor: C.navy },  alignment: align("center") },
+    dateRange:    { font: font({ sz: 10, color: C.metaF }),               fill: { patternType: "solid", fgColor: C.meta },  alignment: align("center") },
+    generatedAt:  { font: font({ sz: 10, italic: true, color: C.italic }),fill: { patternType: "solid", fgColor: C.meta },  alignment: align("center") },
+    sectionTitle: { font: font({ bold: true, sz: 12, color: C.white }),   fill: { patternType: "solid", fgColor: C.slate }, alignment: align("left", "center") },
+    colHeader:    { font: font({ bold: true, sz: 10, color: C.colHdrF }), fill: { patternType: "solid", fgColor: C.colHdr },alignment: align("center", "center", true), border: allBorders(C.border) },
+    dataEven:     { font: font(), fill: { patternType: "solid", fgColor: C.rowBase }, alignment: align("left", "center"), border: allBorders(C.border) },
+    dataOdd:      { font: font(), fill: { patternType: "solid", fgColor: C.rowAlt },  alignment: align("left", "center"), border: allBorders(C.border) },
+  };
+
+  const sc    = (v, style) => ({ v, t: typeof v === "number" ? "n" : "s", s: style });
+  const blank = (style)    => ({ v: "", t: "s", s: style });
+
+  // ── derive columns from actual data keys (strip mongo fields) ──────────────
+  const skipKeys = ["_id", "__v", "createdAt", "updatedAt"];
+  const columns = Object.keys(data[0])
+    .filter(k => !skipKeys.includes(k))
+    .map(k => k.replace(/([A-Z])/g, " $1").replace(/^./, s => s.toUpperCase()).trim());
+
+  const rawKeys = Object.keys(data[0]).filter(k => !skipKeys.includes(k));
+  const rows    = data.map(item => rawKeys.map(k => item[k] ?? ""));
+  const numCols = columns.length;
+
+  const wsData = [
+    // Row 1 — title
+    [sc(`${sheetLabel} Inventory`, s.title), ...Array(numCols - 1).fill(blank(s.title))],
+    // Row 2 — date
+    [sc(`Exported: ${generatedAt}`, s.dateRange), ...Array(numCols - 1).fill(blank(s.dateRange))],
+    // Row 3 — total count
+    [sc(`Total Records: ${data.length}`, s.generatedAt), ...Array(numCols - 1).fill(blank(s.generatedAt))],
+    // Row 4 — spacer
+    Array(numCols).fill({ v: "", t: "s" }),
+    // Row 5 — section label
+    [sc(`${sheetLabel} — Full List`, s.sectionTitle), ...Array(numCols - 1).fill(blank(s.sectionTitle))],
+    // Row 6 — column headers
+    columns.map(col => sc(col, s.colHeader)),
+    // Rows 7+ — data
+    ...rows.map((row, i) => {
+      const style = i % 2 === 0 ? s.dataEven : s.dataOdd;
+      return row.map(val => ({ v: val, t: typeof val === "number" ? "n" : "s", s: style }));
+    }),
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  ws["!merges"] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: numCols - 1 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: numCols - 1 } },
+    { s: { r: 2, c: 0 }, e: { r: 2, c: numCols - 1 } },
+    { s: { r: 3, c: 0 }, e: { r: 3, c: numCols - 1 } },
+    { s: { r: 4, c: 0 }, e: { r: 4, c: numCols - 1 } },
+  ];
+
+  ws["!rows"] = [{ hpt: 32 }, { hpt: 18 }, { hpt: 16 }, { hpt: 8 }, { hpt: 22 }, { hpt: 20 }];
+
+  ws["!cols"] = columns.map((col, ci) => {
+    const allVals = [col, ...rows.map(r => String(r[ci] ?? ""))];
+    return { wch: Math.min(Math.max(...allVals.map(v => String(v).length)) + 4, 35) };
+  });
+
+  XLSX.utils.book_append_sheet(wb, ws, sheetLabel);
+  XLSX.writeFile(wb, `${filename}_${date}.xlsx`);
+}
+
 
 // Function to convert JSON to CSV and trigger download
 function downloadCSV(data, filename) {
@@ -2390,33 +2497,79 @@ function downloadCSV(data, filename) {
 }
 
 function exportFullInventoryToExcel(equipment, chemicals, glassware, fixedAssets) {
-  // 1. Create a new workbook
+  // Reuse the single-sheet builder for each category, combined into one workbook
   const wb = XLSX.utils.book_new();
+  const date = new Date().toISOString().split("T")[0];
+  const generatedAt = new Date().toLocaleString();
 
-  // 2. Helper function to clean data (removes MongoDB fields like _id and __v)
-  const cleanData = (data) => {
-    return data.map(item => {
-      const { _id, __v, ...rest } = item;
-      return rest;
-    });
+  const categories = [
+    { data: equipment,   label: "Equipment"    },
+    { data: chemicals,   label: "Chemicals"    },
+    { data: glassware,   label: "Glassware"    },
+    { data: fixedAssets, label: "Fixed Assets" },
+  ];
+
+  // ── same styles as exportSingleInventorySheet ─────────────────────────────
+  const C = {
+    navy:    { rgb: "1A2F5A" }, white:   { rgb: "FFFFFF" },
+    slate:   { rgb: "2E4A7A" }, colHdr:  { rgb: "D6E4F0" },
+    colHdrF: { rgb: "1A2F5A" }, meta:    { rgb: "EBF2FA" },
+    metaF:   { rgb: "2E4A7A" }, rowAlt:  { rgb: "F5F9FD" },
+    rowBase: { rgb: "FFFFFF" }, border:  { rgb: "BDD4E8" },
+    italic:  { rgb: "666666" },
   };
+  const thin       = (color) => ({ style: "thin", color });
+  const allBorders = (color) => ({ top: thin(color), bottom: thin(color), left: thin(color), right: thin(color) });
+  const font       = (opts = {}) => ({ name: "Arial", sz: opts.sz || 10, ...opts });
+  const align      = (h = "center", v = "center", wrap = false) => ({ horizontal: h, vertical: v, wrapText: wrap });
+  const s = {
+    title:        { font: font({ bold: true, sz: 16, color: C.white }),    fill: { patternType: "solid", fgColor: C.navy },  alignment: align("center") },
+    dateRange:    { font: font({ sz: 10, color: C.metaF }),                fill: { patternType: "solid", fgColor: C.meta },  alignment: align("center") },
+    generatedAt:  { font: font({ sz: 10, italic: true, color: C.italic }), fill: { patternType: "solid", fgColor: C.meta },  alignment: align("center") },
+    sectionTitle: { font: font({ bold: true, sz: 12, color: C.white }),    fill: { patternType: "solid", fgColor: C.slate }, alignment: align("left", "center") },
+    colHeader:    { font: font({ bold: true, sz: 10, color: C.colHdrF }),  fill: { patternType: "solid", fgColor: C.colHdr },alignment: align("center", "center", true), border: allBorders(C.border) },
+    dataEven:     { font: font(), fill: { patternType: "solid", fgColor: C.rowBase }, alignment: align("left", "center"), border: allBorders(C.border) },
+    dataOdd:      { font: font(), fill: { patternType: "solid", fgColor: C.rowAlt },  alignment: align("left", "center"), border: allBorders(C.border) },
+  };
+  const sc    = (v, style) => ({ v, t: typeof v === "number" ? "n" : "s", s: style });
+  const blank = (style)    => ({ v: "", t: "s", s: style });
+  const skipKeys = ["_id", "__v", "createdAt", "updatedAt"];
 
-  // 3. Convert each array to a worksheet
-  const wsEquipment = XLSX.utils.json_to_sheet(cleanData(equipment));
-  const wsChemicals = XLSX.utils.json_to_sheet(cleanData(chemicals));
-  const wsGlassware = XLSX.utils.json_to_sheet(cleanData(glassware));
-  const wsFixedAssets = XLSX.utils.json_to_sheet(cleanData(fixedAssets));
+  categories.forEach(({ data, label }) => {
+    if (!data || data.length === 0) return;
 
-  // 4. Append worksheets to the workbook with specific tab names
-  XLSX.utils.book_append_sheet(wb, wsEquipment, "Equipment");
-  XLSX.utils.book_append_sheet(wb, wsChemicals, "Chemicals");
-  XLSX.utils.book_append_sheet(wb, wsGlassware, "Glassware");
-  XLSX.utils.book_append_sheet(wb, wsFixedAssets, "Fixed Assets");
+    const rawKeys = Object.keys(data[0]).filter(k => !skipKeys.includes(k));
+    const columns = rawKeys.map(k => k.replace(/([A-Z])/g, " $1").replace(/^./, s => s.toUpperCase()).trim());
+    const rows    = data.map(item => rawKeys.map(k => item[k] ?? ""));
+    const numCols = columns.length;
 
-  // 5. Generate Excel file and trigger download
-  const date = new Date().toISOString().split('T')[0];
+    const wsData = [
+      [sc("Full Inventory Report", s.title),         ...Array(numCols - 1).fill(blank(s.title))],
+      [sc(`Exported: ${generatedAt}`, s.dateRange),  ...Array(numCols - 1).fill(blank(s.dateRange))],
+      [sc(`Total Records: ${data.length}`, s.generatedAt), ...Array(numCols - 1).fill(blank(s.generatedAt))],
+      Array(numCols).fill({ v: "", t: "s" }),
+      [sc(`${label} — Full List`, s.sectionTitle),   ...Array(numCols - 1).fill(blank(s.sectionTitle))],
+      columns.map(col => sc(col, s.colHeader)),
+      ...rows.map((row, i) => {
+        const style = i % 2 === 0 ? s.dataEven : s.dataOdd;
+        return row.map(val => ({ v: val, t: typeof val === "number" ? "n" : "s", s: style }));
+      }),
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws["!merges"] = [0,1,2,3,4].map(r => ({ s: { r, c: 0 }, e: { r, c: numCols - 1 } }));
+    ws["!rows"]   = [{ hpt: 32 }, { hpt: 18 }, { hpt: 16 }, { hpt: 8 }, { hpt: 22 }, { hpt: 20 }];
+    ws["!cols"]   = columns.map((col, ci) => {
+      const allVals = [col, ...rows.map(r => String(r[ci] ?? ""))];
+      return { wch: Math.min(Math.max(...allVals.map(v => String(v).length)) + 4, 35) };
+    });
+
+    XLSX.utils.book_append_sheet(wb, ws, label);
+  });
+
   XLSX.writeFile(wb, `Full_Inventory_Report_${date}.xlsx`);
 }
+
 
 /**
  * Sorts the Borrowed Materials table based on the 'Date Borrowed' column.
@@ -3001,43 +3154,291 @@ function exportReportCSV() {
   const rows = flattenReportRows(currentReportData, currentReportType);
   if (!rows.length) return alert("No data to export.");
 
-  const keys = Object.keys(rows[0]);
-  const header = keys.join(",");
+  const reportTitles = {
+    inventory:    "Inventory Report",
+    borrow:       "Borrow / Materials Report",
+    appointments: "Appointments Report",
+    breakage:     "Breakage & Accountability Report",
+    students:     "Student Accounts Report"
+  };
+
+  const from        = document.getElementById("reportFrom").value;
+  const to          = document.getElementById("reportTo").value;
+  const generatedAt = new Date().toLocaleString();
+  const title       = reportTitles[currentReportType] || "Report";
+  const keys        = Object.keys(rows[0]);
+  const totalCols   = keys.length;
+
+  // A full-width separator line that spans all columns
+  const sep = Array(totalCols).fill("=".repeat(10)).join(",");
+  const blank = Array(totalCols).fill("").join(",");
+
+  const wrap = (label, value = "") =>
+    `"${label}","${value}"${totalCols > 2 ? "," + Array(totalCols - 2).fill("").join(",") : ""}`;
+
+  const headerLines = [
+    sep,
+    wrap(`★  ${title.toUpperCase()}`),
+    wrap("Date Range:", `${from}  →  ${to}`),
+    wrap("Generated At:", generatedAt),
+    wrap("Total Records:", rows.length),
+    sep,
+    blank,
+  ].join("\n");
+
+  const columnHeaders = keys.map(k =>
+    // Convert camelCase keys to readable labels
+    `"${k.replace(/([A-Z])/g, " $1").replace(/^./, s => s.toUpperCase()).trim()}"`
+  ).join(",");
+
   const body = rows.map(r =>
     keys.map(k => `"${String(r[k] ?? "").replace(/"/g, '""')}"`).join(",")
   ).join("\n");
 
-  const blob = new Blob([header + "\n" + body], { type: "text/csv;charset=utf-8;" });
+  const csvContent = [headerLines, columnHeaders, body].join("\n");
+  const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
   const url  = URL.createObjectURL(blob);
   const link = document.createElement("a");
-  link.href = url;
+  link.href     = url;
   link.download = `report_${currentReportType}_${new Date().toISOString().split("T")[0]}.csv`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
 }
 
+
 function exportReportExcel() {
   if (!currentReportData) return alert("Generate a report first.");
 
+  // ── palette ────────────────────────────────────────────────────────────────
+  const C = {
+    navy:    { rgb: "1A2F5A" },   // report title bg
+    white:   { rgb: "FFFFFF" },
+    slate:   { rgb: "2E4A7A" },   // section title bg
+    colHdr:  { rgb: "D6E4F0" },   // column header bg
+    colHdrF: { rgb: "1A2F5A" },   // column header text
+    meta:    { rgb: "EBF2FA" },   // date / generated-at bg
+    metaF:   { rgb: "2E4A7A" },
+    rowAlt:  { rgb: "F5F9FD" },   // alternating row bg
+    rowBase: { rgb: "FFFFFF" },
+    border:  { rgb: "BDD4E8" },
+    italic:  { rgb: "666666" },
+  };
+
+  const thin = (color) => ({ style: "thin", color });
+  const allBorders = (color) => ({
+    top: thin(color), bottom: thin(color),
+    left: thin(color), right: thin(color)
+  });
+
+  const font  = (opts = {}) => ({ name: "Arial", sz: opts.sz || 10, ...opts });
+  const align = (h = "center", v = "center", wrap = false) =>
+    ({ horizontal: h, vertical: v, wrapText: wrap });
+
+  // ── style factories ────────────────────────────────────────────────────────
+  const s = {
+    title: {
+      font: font({ bold: true, sz: 16, color: C.white }),
+      fill: { patternType: "solid", fgColor: C.navy },
+      alignment: align("center")
+    },
+    dateRange: {
+      font: font({ sz: 10, color: C.metaF }),
+      fill: { patternType: "solid", fgColor: C.meta },
+      alignment: align("center")
+    },
+    generatedAt: {
+      font: font({ sz: 10, italic: true, color: C.italic }),
+      fill: { patternType: "solid", fgColor: C.meta },
+      alignment: align("center")
+    },
+    sectionTitle: {
+      font: font({ bold: true, sz: 12, color: C.white }),
+      fill: { patternType: "solid", fgColor: C.slate },
+      alignment: align("left", "center")
+    },
+    colHeader: {
+      font: font({ bold: true, sz: 10, color: C.colHdrF }),
+      fill: { patternType: "solid", fgColor: C.colHdr },
+      alignment: align("center", "center", true),
+      border: allBorders(C.border)
+    },
+    dataEven: {
+      font: font(),
+      fill: { patternType: "solid", fgColor: C.rowBase },
+      alignment: align("left", "center"),
+      border: allBorders(C.border)
+    },
+    dataOdd: {
+      font: font(),
+      fill: { patternType: "solid", fgColor: C.rowAlt },
+      alignment: align("left", "center"),
+      border: allBorders(C.border)
+    }
+  };
+
+  const from = document.getElementById("reportFrom").value;
+  const to   = document.getElementById("reportTo").value;
+  const generatedAt = new Date().toLocaleString();
+
+  const reportTitles = {
+    inventory:    "Inventory Report",
+    borrow:       "Borrow / Materials Report",
+    appointments: "Appointments Report",
+    breakage:     "Breakage & Accountability Report",
+    students:     "Student Accounts Report"
+  };
+  const mainTitle = reportTitles[currentReportType] || "Report";
+
+  // ── core builder: turns columns + rows into a formatted ws ────────────────
+  function buildSheet(sectionTitle, columns, rows) {
+    const numCols = columns.length;
+    const wsData  = [];
+
+    // helper: one styled cell
+    const sc = (v, style) => ({ v, t: typeof v === "number" ? "n" : "s", s: style });
+    // helper: merged-cell placeholder
+    const blank = (style) => ({ v: "", t: "s", s: style });
+
+    // Row 1 — report title (will be merged across all columns)
+    wsData.push([sc(mainTitle, s.title), ...Array(numCols - 1).fill(blank(s.title))]);
+
+    // Row 2 — date range
+    wsData.push([sc(`Date Range: ${from} to ${to}`, s.dateRange),
+                 ...Array(numCols - 1).fill(blank(s.dateRange))]);
+
+    // Row 3 — generated at
+    wsData.push([sc(`Generated At: ${generatedAt}`, s.generatedAt),
+                 ...Array(numCols - 1).fill(blank(s.generatedAt))]);
+
+    // Row 4 — blank spacer
+    wsData.push(Array(numCols).fill({ v: "", t: "s" }));
+
+    // Row 5 — section / table title
+    wsData.push([sc(sectionTitle, s.sectionTitle),
+                 ...Array(numCols - 1).fill(blank(s.sectionTitle))]);
+
+    // Row 6 — column headers
+    wsData.push(columns.map(col => sc(col, s.colHeader)));
+
+    // Rows 7+ — data
+    rows.forEach((row, i) => {
+      const style = i % 2 === 0 ? s.dataEven : s.dataOdd;
+      wsData.push(
+        columns.map((_, ci) => {
+          const val = row[ci] ?? "";
+          return { v: val, t: typeof val === "number" ? "n" : "s", s: style };
+        })
+      );
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // Merge header rows across all columns
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: numCols - 1 } }, // title
+      { s: { r: 1, c: 0 }, e: { r: 1, c: numCols - 1 } }, // date range
+      { s: { r: 2, c: 0 }, e: { r: 2, c: numCols - 1 } }, // generated at
+      { s: { r: 3, c: 0 }, e: { r: 3, c: numCols - 1 } }, // spacer
+      { s: { r: 4, c: 0 }, e: { r: 4, c: numCols - 1 } }, // section title
+    ];
+
+    // Row heights (in points)
+    ws["!rows"] = [
+      { hpt: 32 }, // title
+      { hpt: 18 }, // date range
+      { hpt: 16 }, // generated at
+      { hpt: 8  }, // spacer
+      { hpt: 22 }, // section title
+      { hpt: 20 }, // col headers
+    ];
+
+    // Auto column widths
+    ws["!cols"] = columns.map((col, ci) => {
+      const allVals = [col, ...rows.map(r => String(r[ci] ?? ""))];
+      const max = Math.max(...allVals.map(v => String(v).length));
+      return { wch: Math.min(max + 4, 30) };
+    });
+
+    return ws;
+  }
+
+  // ── map report types to columns/rows ──────────────────────────────────────
   const wb = XLSX.utils.book_new();
+  const date = new Date().toISOString().split("T")[0];
 
   if (currentReportType === "inventory") {
-    const cats = ["equipment", "chemicals", "glassware", "fixedAssets"];
+    const cats   = ["equipment", "chemicals", "glassware", "fixedAssets"];
     const labels = ["Equipment", "Chemicals", "Glassware", "Fixed Assets"];
+    const colMap = {
+      equipment:   ["Name", "Specification", "Location", "Total Qty", "Remaining", "Status"],
+      chemicals:   ["Chemical Name", "CAS No.", "Container Size", "Units", "State", "Location", "Status"],
+      glassware:   ["Name", "Description", "Total Qty", "Remaining", "Remarks", "Status"],
+      fixedAssets: ["Date Received", "Property Code", "Name", "Description", "Serial No.", "Location", "Qty", "Cost", "Status"],
+    };
+    const rowMap = {
+      equipment:   d => [d.name, d.specs, d.location, d.total, d.remaining, d.status],
+      chemicals:   d => [d.name, d.specs, d.location, d.total, d.remaining, d.status, ""],
+      glassware:   d => [d.name, d.specs, d.location, d.total, d.remaining, d.status],
+      fixedAssets: d => [d.name, d.specs, d.location, d.total, d.remaining, d.status, "", "", ""],
+    };
+
     cats.forEach((c, i) => {
-      const ws = XLSX.utils.json_to_sheet(currentReportData[c].items);
+      const items   = currentReportData[c].items;
+      const columns = colMap[c];
+      const rows    = items.map(rowMap[c]);
+      const ws = buildSheet(
+        `${labels[i]}  ·  ${currentReportData[c].totalQty} total  |  ${currentReportData[c].remainingQty} remaining  |  ${currentReportData[c].lowStockCount} low stock`,
+        columns,
+        rows
+      );
       XLSX.utils.book_append_sheet(wb, ws, labels[i]);
     });
+
   } else {
-    const rows = currentReportData.rows || [];
-    const ws   = XLSX.utils.json_to_sheet(rows);
+    const colMaps = {
+      borrow: {
+        title: "Borrow Records",
+        cols: ["Student Name","Lab ID","Experiment","# Materials","Borrowed","Due","Returned","Status"],
+        map:  r => [r.studentName, r.labID, r.experiment, r.materialsCount,
+                    r.borrowedAt ? new Date(r.borrowedAt).toLocaleDateString() : "—",
+                    r.dueDate    ? new Date(r.dueDate).toLocaleDateString()    : "—",
+                    r.returnedAt ? new Date(r.returnedAt).toLocaleDateString() : "—",
+                    r.status]
+      },
+      appointments: {
+        title: "Appointment Records",
+        cols: ["Name","Type","Purpose","CYS","Date","Time Slot","Status"],
+        map:  r => [r.name, r.type, r.purpose, r.cys,
+                    r.date ? new Date(r.date).toLocaleDateString() : "—",
+                    r.timeSlot, r.status]
+      },
+      breakage: {
+        title: "Breakage & Accountability Records",
+        cols: ["Lab ID","Student","Item","Category","Qty Broken","Violation","Remarks","Date Reported","Status"],
+        map:  r => [r.labID, r.studentName, r.item, r.category, r.qty,
+                    r.violation, r.remarks,
+                    r.reportedAt ? new Date(r.reportedAt).toLocaleDateString() : "—",
+                    r.status]
+      },
+      students: {
+        title: "Active Student Accounts",
+        cols: ["Full Name","Lab ID","Email","CYS","Professor","Schedule","Borrows","Breakages","Appointments","Registered"],
+        map:  r => [r.fullName, r.labID, r.email, r.cys, r.professor,
+                    r.classSchedule, r.borrows, r.breakages, r.appointments,
+                    r.registeredAt ? new Date(r.registeredAt).toLocaleDateString() : "—"]
+      }
+    };
+
+    const cfg  = colMaps[currentReportType];
+    const rows = (currentReportData.rows || []).map(cfg.map);
+    const ws   = buildSheet(cfg.title, cfg.cols, rows);
     XLSX.utils.book_append_sheet(wb, ws, currentReportType);
   }
 
-  const date = new Date().toISOString().split("T")[0];
   XLSX.writeFile(wb, `report_${currentReportType}_${date}.xlsx`);
 }
+
 
 // Run this automatically when the page loads to show the home dashboard
 showPage('home');
