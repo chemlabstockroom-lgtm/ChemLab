@@ -1962,22 +1962,32 @@ function openExperimentDetail(exp) {
   document.getElementById("detailExpCourse").textContent = exp.course || "";
   document.getElementById("detailExpDesc").textContent = exp.description || "No description provided.";
 
-  const matDiv = document.getElementById("detailExpMaterials");
-  const mats = exp.materials || [];
-  if (!mats.length) {
-    matDiv.innerHTML = `<p style="color:rgba(255,255,255,0.4); font-size:0.9rem;">No materials added yet.</p>`;
-  } else {
-    matDiv.innerHTML = mats.map(m => `
-      <div style="display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.07); font-size:13px;">
-        <span style="background:rgba(255,255,255,0.1); border-radius:6px; padding:2px 8px; font-size:12px; color:rgba(255,255,255,0.6); min-width:28px; text-align:center;">${m.qty ?? 1}x</span>
-        <span style="color:#fff; flex:1;">${m.item}</span>
-        <span style="font-size:11px; color:rgba(255,255,255,0.35);">${m.category || ""}</span>
-      </div>
-    `).join("");
-  }
-
+  renderDetailMaterials(exp);
   document.getElementById("experimentDetailModal").classList.remove("hidden");
 }
+
+function renderDetailMaterials(exp) {
+  const matDiv = document.getElementById("detailExpMaterials");
+  const mats = exp.materials || [];
+
+  if (!mats.length) {
+    matDiv.innerHTML = `<p style="color:rgba(255,255,255,0.4); font-size:0.9rem;">No materials added yet.</p>`;
+    return;
+  }
+
+  matDiv.innerHTML = mats.map(m => `
+    <div style="display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.07); font-size:13px;">
+      <span style="color:#fff; flex:1;">${m.item}</span>
+      <span style="font-size:11px; color:rgba(255,255,255,0.35); flex:1;">${m.specs || ""} <em style="color:rgba(255,255,255,0.25);">${m.category || ""}</em></span>
+      <button 
+        onclick="deleteMaterialFromExp('${exp._id}', '${m._id}')"
+        style="background:rgba(255,80,80,0.15); border:1px solid rgba(255,80,80,0.3); color:#ff6b6b; border-radius:6px; padding:3px 8px; cursor:pointer; font-size:12px;">
+        ✕
+      </button>
+    </div>
+  `).join("");
+}
+
 
 function closeExperimentDetailModal() {
   document.getElementById("experimentDetailModal").classList.add("hidden");
@@ -2066,6 +2076,11 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("addExperimentForm").reset();
         document.getElementById("editExpId").value = "";
         loadExperiments();
+      } if (id) {
+        const freshRes = await fetch(`${API_BASE}/admin/experiments`, { headers: { Authorization: `Bearer ${token}` } });
+        const freshData = await freshRes.json();
+        const freshExp = freshData.experiments.find(e => e._id === id);
+        if (freshExp) openExperimentDetail(freshExp);
       } else {
         const result = await res.json();
         let errDiv = document.getElementById("experimentError");
@@ -2211,6 +2226,59 @@ document.getElementById("addMaterialForm").addEventListener("submit", async (e) 
     showMaterialError("Failed to add material");
   }
 });
+
+async function deleteMaterialFromExp(expId, materialId) {
+  if (!confirm("Remove this material from the experiment?")) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/admin/experiments/${expId}/materials/${materialId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    const result = await res.json();
+    if (res.ok) {
+      // Refresh the detail modal with updated data
+      const expRes = await fetch(`${API_BASE}/admin/experiments`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await expRes.json();
+      const updatedExp = data.experiments.find(e => e._id === expId);
+      if (updatedExp) {
+        renderDetailMaterials(updatedExp);
+      }
+      loadExperiments(); // refresh grid
+    } else {
+      alert("Error: " + result.message);
+    }
+  } catch (err) {
+    console.error("Delete material error:", err);
+    alert("Connection error.");
+  }
+}
+
+async function updateMaterialQty(expId, materialId, newQty) {
+  const qty = parseInt(newQty);
+  if (!qty || qty <= 0) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/admin/experiments/${expId}/materials/${materialId}`, {
+      method: "PATCH",
+      headers: { 
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}` 
+      },
+      body: JSON.stringify({ qty })
+    });
+
+    if (res.ok) {
+      loadExperiments(); // refresh grid tile count
+    } else {
+      const result = await res.json();
+      alert("Error updating qty: " + result.message);
+    }
+  } catch (err) {
+    console.error("Update qty error:", err);
+  }
+}
 
 
 

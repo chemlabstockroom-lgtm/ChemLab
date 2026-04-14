@@ -649,6 +649,37 @@ app.post("/api/admin/experiments/:id/materials", authMiddleware, requireAdmin, a
   res.json({ message: "Material added", experiment: exp });
 });
 
+// Delete a material from experiment
+app.delete("/api/admin/experiments/:id/materials/:materialId", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const exp = await Experiment.findById(req.params.id);
+    if (!exp) return res.status(404).json({ message: "Experiment not found" });
+
+    exp.materials = exp.materials.filter(m => String(m._id) !== String(req.params.materialId));
+    await exp.save();
+    res.json({ message: "Material removed", experiment: exp });
+  } catch (err) {
+    res.status(500).json({ message: "Error removing material" });
+  }
+});
+
+// Update a material's qty in experiment
+app.patch("/api/admin/experiments/:id/materials/:materialId", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const { qty } = req.body;
+    const exp = await Experiment.findById(req.params.id);
+    if (!exp) return res.status(404).json({ message: "Experiment not found" });
+
+    const mat = exp.materials.id(req.params.materialId);
+    if (!mat) return res.status(404).json({ message: "Material not found" });
+
+    mat.qty = Number(qty);
+    await exp.save();
+    res.json({ message: "Material updated", experiment: exp });
+  } catch (err) {
+    res.status(500).json({ message: "Error updating material" });
+  }
+});
 
 // ===== INVENTORY ROUTES =====
 // ====== EQUIPMENT =====
