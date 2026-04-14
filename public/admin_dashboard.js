@@ -2414,6 +2414,7 @@ function exportSingleInventorySheet(data, filename, sheetLabel) {
 }
 
 
+
 // Function to convert JSON to CSV and trigger download
 function downloadCSV(data, filename) {
   if (!data || data.length === 0) {
@@ -2569,6 +2570,7 @@ function exportFullInventoryToExcel(equipment, chemicals, glassware, fixedAssets
 
   XLSX.writeFile(wb, `Full_Inventory_Report_${date}.xlsx`);
 }
+
 
 
 /**
@@ -3207,6 +3209,7 @@ function exportReportCSV() {
 }
 
 
+
 function exportReportExcel() {
   if (!currentReportData) return alert("Generate a report first.");
 
@@ -3438,6 +3441,7 @@ function exportReportExcel() {
 
   XLSX.writeFile(wb, `report_${currentReportType}_${date}.xlsx`);
 }
+
 
 
 // Run this automatically when the page loads to show the home dashboard
