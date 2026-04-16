@@ -130,23 +130,31 @@ async function loadExperiments() {
       return;
     }
 
-    // Build tile grid + one hidden expanded panel
-    list.innerHTML = `
-      <div id="expTileGrid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:1rem; margin-bottom:1.5rem;">
-        ${data.experiments.map(exp => `
+    // Group by course
+    const grouped = {};
+    data.experiments.forEach(exp => {
+      const key = exp.course || "Uncategorized";
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(exp);
+    });
+
+    const tilesHtml = Object.entries(grouped).map(([course, exps]) => `
+      <h3 style="color:#FFD700; margin:20px 0 10px; font-size:0.85rem; text-transform:uppercase; letter-spacing:0.08em; opacity:0.8;">${course}</h3>
+      <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:1rem; margin-bottom:1.5rem;">
+        ${exps.map(exp => `
           <div class="card" style="cursor:pointer; padding:20px;" onclick="openExperiment('${exp._id}')">
             <h3 style="margin-bottom:8px;">${exp.name}</h3>
             <p style="font-size:0.9rem; color:#ccc; margin-bottom:1rem;">${exp.description || ""}</p>
             <div style="display:flex; justify-content:space-between; align-items:center;">
-              <small style="color:#aaa;">${exp.materials?.length || 0} material(s) · ${exp.course || "N/A"}</small>
+              <small style="color:#aaa;">${exp.materials?.length || 0} material(s)</small>
               <button onclick="event.stopPropagation(); openExperiment('${exp._id}')" style="min-width:unset; padding:6px 14px; font-size:0.8rem;">View</button>
             </div>
           </div>
         `).join("")}
       </div>
+    `).join("");
 
-      <div id="expExpandedPanel" style="display:none; margin-top:1rem;" data-expid=""></div>
-    `;
+    list.innerHTML = `<div>${tilesHtml}</div><div id="expExpandedPanel" style="display:none; margin-top:1rem;" data-expid=""></div>`;
 
     // Store experiment data on window so openExperiment can access it
     window._experiments = data.experiments;
@@ -155,6 +163,7 @@ async function loadExperiments() {
     console.error("Error loading experiments:", err);
   }
 }
+
 
 function openExperiment(expId) {
   const exp = window._experiments.find(e => e._id === expId);

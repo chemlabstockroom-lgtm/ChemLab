@@ -1920,41 +1920,84 @@ async function loadExperiments() {
     return;
   }
 
+  const grouped = {};
   data.experiments.forEach(exp => {
-    const matCount = (exp.materials || []).length;
-    const tile = document.createElement("div");
-    tile.style.cssText = `
-      background: rgba(0,43,22,0.6);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 14px;
-      padding: 20px;
-      cursor: pointer;
-      transition: all 0.25s ease;
+    const key = exp.course || "Uncategorized";
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(exp);
+  });
+
+  // Reset grid so it's a plain block container — each category manages its own row
+  grid.style.cssText = "display: block;";
+
+  Object.entries(grouped).forEach(([course, exps]) => {
+    // Category section wrapper
+    const section = document.createElement("div");
+    section.style.cssText = "margin-bottom: 30px; width: 100%;";
+
+    // Category header
+    const header = document.createElement("h3");
+    header.textContent = course;
+    header.style.cssText = `
+      color: #FFD700;
+      margin: 20px 0 12px;
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      text-align: left;
+      width: 100%;
     `;
-    tile.onmouseenter = () => {
-      tile.style.background = "rgba(0,70,32,0.8)";
-      tile.style.borderColor = "rgba(255,215,0,0.4)";
-      tile.style.transform = "translateY(-4px)";
-    };
-    tile.onmouseleave = () => {
-      tile.style.background = "rgba(0,43,22,0.6)";
-      tile.style.borderColor = "rgba(255,255,255,0.1)";
-      tile.style.transform = "translateY(0)";
-    };
-    tile.innerHTML = `
-      <span style="font-size:11px; font-weight:600; background:rgba(255,215,0,0.15); color:#FFD700; border-radius:99px; padding:3px 10px; display:inline-block; margin-bottom:10px;">
-        ${exp.course || "No course"}
-      </span>
-      <p style="font-size:15px; font-weight:600; color:#ffffff; margin:0 0 6px; line-height:1.3;">${exp.name}</p>
-      <p style="font-size:13px; color:rgba(255,255,255,0.5); margin:0 0 14px;">${exp.description || "No description"}</p>
-      <span style="font-size:12px; color:rgba(255,255,255,0.35);">
-        ● ${matCount} material${matCount !== 1 ? "s" : ""}
-      </span>
+    section.appendChild(header);
+
+    // Cards grid row — wraps cards, left-aligned
+    const cardRow = document.createElement("div");
+    cardRow.style.cssText = `
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 14px;
+      width: 100%;
     `;
-    tile.onclick = () => openExperimentDetail(exp);
-    grid.appendChild(tile);
+
+    exps.forEach(exp => {
+      const matCount = (exp.materials || []).length;
+      const tile = document.createElement("div");
+      tile.style.cssText = `
+        background: rgba(0,43,22,0.6);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 14px;
+        padding: 20px;
+        cursor: pointer;
+        transition: all 0.25s ease;
+      `;
+      tile.onmouseenter = () => {
+        tile.style.background = "rgba(0,70,32,0.8)";
+        tile.style.borderColor = "rgba(255,215,0,0.4)";
+        tile.style.transform = "translateY(-4px)";
+      };
+      tile.onmouseleave = () => {
+        tile.style.background = "rgba(0,43,22,0.6)";
+        tile.style.borderColor = "rgba(255,255,255,0.1)";
+        tile.style.transform = "translateY(0)";
+      };
+      tile.innerHTML = `
+        <span style="font-size:11px; font-weight:600; background:rgba(255,215,0,0.15); color:#FFD700; border-radius:99px; padding:3px 10px; display:inline-block; margin-bottom:10px;">
+          ${exp.course || "No course"}
+        </span>
+        <p style="font-size:15px; font-weight:600; color:#ffffff; margin:0 0 6px; line-height:1.3;">${exp.name}</p>
+        <p style="font-size:13px; color:rgba(255,255,255,0.5); margin:0 0 14px;">${exp.description || "No description"}</p>
+        <span style="font-size:12px; color:rgba(255,255,255,0.35);">
+          ● ${matCount} material${matCount !== 1 ? "s" : ""}
+        </span>
+      `;
+      tile.onclick = () => openExperimentDetail(exp);
+      cardRow.appendChild(tile);
+    });
+
+    section.appendChild(cardRow);
+    grid.appendChild(section);
   });
 }
+
 
 function openExperimentDetail(exp) {
   currentDetailExpId = exp._id;
