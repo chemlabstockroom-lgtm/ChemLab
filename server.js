@@ -1109,6 +1109,7 @@ app.get("/api/admin/reports", authMiddleware, requireAdmin, async (req, res) => 
       const summarize = (arr, nameFn) => ({
         items: arr.map(i => ({
           name:      nameFn(i),
+          propertyCode: i.propertyCode || "",
           specs:     i.specification || i.description || i.containerSize || "",
           total:     i.quantity      || 0,
           remaining: i.remainingQuantity ?? i.quantity ?? 0,

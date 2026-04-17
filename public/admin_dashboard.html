@@ -253,6 +253,7 @@
               <thead>
                 <tr>
                   <th>Date Received</th>
+                  <th>Property Code</th>
                   <th>Item Name</th>
                   <th>Specification/s</th>
                   <th>Location</th>
@@ -1446,6 +1447,9 @@
       <label for="itemNameField">Item Name:</label>
       <input type="text" id="itemNameField">
 
+      <label for="itemPropertyCodeEquip">Property Code:</label>
+      <input type="text" id="itemPropertyCodeEquip" placeholder="e.g. EQ-001">
+
       <label for="itemDate">Date Received:</label>
       <input type="date" id="itemDate">
 
@@ -1574,6 +1578,7 @@
 
           if (category === "equipment") {
             itemData.itemName = document.getElementById("itemNameField").value;
+            itemData.propertyCode = document.getElementById("itemPropertyCodeEquip").value;
             itemData.dateReceived = document.getElementById("itemDate").value;
             itemData.specification =
               document.getElementById("itemSpecification").value;

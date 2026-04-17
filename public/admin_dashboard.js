@@ -599,7 +599,7 @@ async function loadInventory() {
     };
 
     populateTable(equipment, "equipmentTable", item => `
-      <td>${item.dateReceived || ""}</td><td>${item.itemName || ""}</td><td>${item.specification || ""}</td>
+      <td>${item.dateReceived || ""}</td><td>${item.propertyCode || ""}</td><td>${item.itemName || ""}</td><td>${item.specification || ""}</td>
       <td>${item.location || ""}</td><td>${item.quantity || "0"}</td><td>${item.remainingQuantity ?? 0}</td>
       <td><button onclick="editMaterial('${item._id}', 'equipment')">Edit</button> <button class="add-qty-btn" onclick="openAddQtyModal('${item._id}', 'equipment', '${(item.itemName||'').replace(/'/g,"\\'")}')">+ Qty</button>
       <button onclick="deleteMaterial('${item._id}', 'equipment')">Delete</button></td>
@@ -3244,6 +3244,7 @@ function buildReportTable(type, data) {
       items.forEach(item => {
         html += `<tr>
           <td ${tdStyle}>${item.name}</td>
+          <td ${tdStyle}>${item.propertyCode || "—"}</td>
           <td ${tdStyle}>${item.specs || "—"}</td>
           <td ${tdStyle}>${item.location || "—"}</td>
           <td ${tdStyle}>${item.total}</td>
@@ -3589,13 +3590,13 @@ function exportReportExcel() {
     const cats   = ["equipment", "chemicals", "glassware", "fixedAssets"];
     const labels = ["Equipment", "Chemicals", "Glassware", "Fixed Assets"];
     const colMap = {
-      equipment:   ["Name", "Specification", "Location", "Total Qty", "Remaining", "Status"],
+      equipment:   ["Name", "Property Code", "Specification", "Location", "Total Qty", "Remaining", "Status"],
       chemicals:   ["Chemical Name", "CAS No.", "Container Size", "Units", "State", "Location", "Status"],
       glassware:   ["Name", "Description", "Total Qty", "Remaining", "Remarks", "Status"],
       fixedAssets: ["Date Received", "Property Code", "Name", "Description", "Serial No.", "Location", "Qty", "Cost", "Status"],
     };
     const rowMap = {
-      equipment:   d => [d.name, d.specs, d.location, d.total, d.remaining, d.status],
+      equipment:   d => [d.name, d.propertyCode || "—", d.specs, d.location, d.total, d.remaining, d.status],
       chemicals:   d => [d.name, d.specs, d.location, d.total, d.remaining, d.status, ""],
       glassware:   d => [d.name, d.specs, d.location, d.total, d.remaining, d.status],
       fixedAssets: d => [d.name, d.specs, d.location, d.total, d.remaining, d.status, "", "", ""],
