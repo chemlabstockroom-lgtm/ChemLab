@@ -3236,22 +3236,51 @@ function buildReportTable(type, data) {
         <span style="font-size:12px;color:rgba(255,255,255,0.4);font-weight:400;margin-left:8px;">
           Total: ${data[c].totalQty} | Remaining: ${data[c].remainingQty} | Low stock: ${data[c].lowStockCount}
         </span></h3>`;
-      html += `<table ${tableStyle}><thead><tr>
-        <th ${thStyle}>Name</th><th ${thStyle}>Specs</th>
-        <th ${thStyle}>Location</th><th ${thStyle}>Total</th>
-        <th ${thStyle}>Remaining</th><th ${thStyle}>Status</th>
-        </tr></thead><tbody>`;
-      items.forEach(item => {
-        html += `<tr>
-          <td ${tdStyle}>${item.name}</td>
-          <td ${tdStyle}>${item.propertyCode || "—"}</td>
-          <td ${tdStyle}>${item.specs || "—"}</td>
-          <td ${tdStyle}>${item.location || "—"}</td>
-          <td ${tdStyle}>${item.total}</td>
-          <td ${tdStyle}>${item.remaining}</td>
-          <td ${tdStyle}>${statusBadge(item.status)}</td>
-        </tr>`;
-      });
+
+      // Equipment and Fixed Assets have property code
+      if (c === "equipment" || c === "fixedAssets") {
+        html += `<table ${tableStyle}><thead><tr>
+          <th ${thStyle}>Name</th>
+          <th ${thStyle}>Property Code</th>
+          <th ${thStyle}>Specs</th>
+          <th ${thStyle}>Location</th>
+          <th ${thStyle}>Total</th>
+          <th ${thStyle}>Remaining</th>
+          <th ${thStyle}>Status</th>
+          </tr></thead><tbody>`;
+        items.forEach(item => {
+          html += `<tr>
+            <td ${tdStyle}>${item.name}</td>
+            <td ${tdStyle}>${item.propertyCode || "—"}</td>
+            <td ${tdStyle}>${item.specs || "—"}</td>
+            <td ${tdStyle}>${item.location || "—"}</td>
+            <td ${tdStyle}>${item.total}</td>
+            <td ${tdStyle}>${item.remaining}</td>
+            <td ${tdStyle}>${statusBadge(item.status)}</td>
+          </tr>`;
+        });
+      } else {
+        // Chemicals and Glassware — no property code column
+        html += `<table ${tableStyle}><thead><tr>
+          <th ${thStyle}>Name</th>
+          <th ${thStyle}>Specs</th>
+          <th ${thStyle}>Location</th>
+          <th ${thStyle}>Total</th>
+          <th ${thStyle}>Remaining</th>
+          <th ${thStyle}>Status</th>
+          </tr></thead><tbody>`;
+        items.forEach(item => {
+          html += `<tr>
+            <td ${tdStyle}>${item.name}</td>
+            <td ${tdStyle}>${item.specs || "—"}</td>
+            <td ${tdStyle}>${item.location || "—"}</td>
+            <td ${tdStyle}>${item.total}</td>
+            <td ${tdStyle}>${item.remaining}</td>
+            <td ${tdStyle}>${statusBadge(item.status)}</td>
+          </tr>`;
+        });
+      }
+
       html += "</tbody></table>";
     });
     return html;
@@ -3589,17 +3618,19 @@ function exportReportExcel() {
   if (currentReportType === "inventory") {
     const cats   = ["equipment", "chemicals", "glassware", "fixedAssets"];
     const labels = ["Equipment", "Chemicals", "Glassware", "Fixed Assets"];
+
     const colMap = {
-      equipment:   ["Name", "Property Code", "Specification", "Location", "Total Qty", "Remaining", "Status"],
-      chemicals:   ["Chemical Name", "CAS No.", "Container Size", "Units", "State", "Location", "Status"],
-      glassware:   ["Name", "Description", "Total Qty", "Remaining", "Remarks", "Status"],
-      fixedAssets: ["Date Received", "Property Code", "Name", "Description", "Serial No.", "Location", "Qty", "Cost", "Status"],
+      equipment:   ["Name", "Property Code", "Specs", "Location", "Total Qty", "Remaining", "Status"],
+      chemicals:   ["Name", "Specs", "Location", "Total Qty", "Remaining", "Status"],
+      glassware:   ["Name", "Specs", "Location", "Total Qty", "Remaining", "Status"],
+      fixedAssets: ["Name", "Property Code", "Specs", "Location", "Total Qty", "Remaining", "Status"],
     };
+
     const rowMap = {
-      equipment:   d => [d.name, d.propertyCode || "—", d.specs, d.location, d.total, d.remaining, d.status],
-      chemicals:   d => [d.name, d.specs, d.location, d.total, d.remaining, d.status, ""],
-      glassware:   d => [d.name, d.specs, d.location, d.total, d.remaining, d.status],
-      fixedAssets: d => [d.name, d.specs, d.location, d.total, d.remaining, d.status, "", "", ""],
+      equipment:   d => [d.name, d.propertyCode || "—", d.specs || "—", d.location || "—", d.total, d.remaining, d.status],
+      chemicals:   d => [d.name, d.specs || "—", d.location || "—", d.total, d.remaining, d.status],
+      glassware:   d => [d.name, d.specs || "—", d.location || "—", d.total, d.remaining, d.status],
+      fixedAssets: d => [d.name, d.propertyCode || "—", d.specs || "—", d.location || "—", d.total, d.remaining, d.status],
     };
 
     cats.forEach((c, i) => {
