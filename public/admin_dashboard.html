@@ -291,6 +291,8 @@
                   <th>Chemical Name</th>
                   <th>CAS #</th>
                   <th>Container Size</th>
+                  <th>Total Qty</th>
+                  <th>Remaining</th>
                   <th>Status</th>
                   <th>Units</th>
                   <th>State</th>
@@ -1501,6 +1503,10 @@
         <label for="itemState">State: <span style="color:#ff6b6b;">*</span></label>
         <input type="text" id="itemState" required placeholder="e.g. liquid, solid, gas">
         <small id="stateMsg" style="color:#ff6b6b; display:none; font-size:0.8rem;">This field is required.</small>
+
+        <label for="itemQuantityField">Quantity: <span style="color:#ff6b6b;">*</span></label>
+        <input type="number" id="itemQuantityField" min="1" required placeholder="e.g. 500">
+        <small id="quantityMsg" style="color:#ff6b6b; display:none; font-size:0.8rem;">Quantity is required.</small>
       `;
         } else if (category === "glassware") {
           additionalFields.innerHTML = `
@@ -1606,6 +1612,7 @@
               .value.trim();
             itemData.units = document.getElementById("itemUnits").value.trim();
             itemData.state = document.getElementById("itemState").value.trim();
+            itemData.quantity = document.getElementById("itemQuantityField").value;
             itemData.status = document.getElementById("itemStatus").value;
 
             // --- HIDE ALL INLINE MESSAGES FIRST ---
@@ -1656,6 +1663,11 @@
                 value: itemData.state,
                 msgId: "stateMsg",
                 msg: "State is required.",
+              },
+              {
+                value: itemData.quantity,
+                msgId: "quantityMsg",
+                msg: "Quantity is required.",
               },
             ];
 
