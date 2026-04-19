@@ -607,7 +607,7 @@ async function loadInventory() {
 
     populateTable(chemicals, "chemicalsTable", item => `
       <td>${item.barcode || ""}</td><td>${item.location || ""}</td><td>${item.dateIn || ""}</td><td>${item.chemicalName || ""}</td>
-      <td>${item.casNumber || ""}</td><td>${item.containerSize || ""}</td><td>${item.quantity ?? 0}</td><td>${item.remainingQuantity ?? 0}</td><td>${item.status || "Available"}</td>
+      <td>${item.casNumber || ""}</td><td>${item.quantity ?? 0}</td><td>${item.remainingQuantity ?? 0}</td><td>${item.status || "Available"}</td>
       <td>${item.units || ""}</td><td>${item.state || ""}</td>
       <td><button onclick="editMaterial('${item._id}', 'chemicals')">Edit</button> <button class="add-qty-btn" onclick="openAddQtyModal('${item._id}', 'chemicals', '${(item.chemicalName||'').replace(/'/g,"\\'")}')">+ Qty</button>
       <button onclick="deleteMaterial('${item._id}', 'chemicals')">Delete</button></td>

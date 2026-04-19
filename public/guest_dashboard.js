@@ -371,7 +371,13 @@ async function loadGuestItems(categorySelect) {
         itemSelect.innerHTML = '<option value="">Select Item</option>';
         items.forEach(i => {
             const name = i.itemName || i.chemicalName;
-            const specs = i.specification || i.description || i.casNumber || "N/A";
+            
+            let specs;
+            if (i.chemicalName) {
+                specs = i.units || "N/A";
+            } else {
+                specs = i.specification || i.description || "N/A";
+            }
             
             const option = document.createElement('option');
             option.value = name;
