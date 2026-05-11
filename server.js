@@ -886,6 +886,12 @@ app.get("/api/admin/fixed-assets", async (req, res) => {
 
 app.post("/api/admin/fixed-assets", async (req, res) => {
   try {
+    if (req.body.propertyCode && req.body.propertyCode.trim() !== "") {
+      const existing = await FixedAsset.findOne({ propertyCode: req.body.propertyCode.trim() });
+      if (existing) {
+        return res.status(400).json({ message: `Property code "${req.body.propertyCode}" is already assigned to another fixed asset.` });
+      }
+    }
     const newItem = new FixedAsset(req.body);
     await newItem.save();
     res.json({ message: "Fixed asset added", newItem });
@@ -896,6 +902,12 @@ app.post("/api/admin/fixed-assets", async (req, res) => {
 
 app.put("/api/admin/fixed-assets/:id", async (req, res) => {
   try {
+    if (req.body.propertyCode && req.body.propertyCode.trim() !== "") {
+      const existing = await FixedAsset.findOne({ propertyCode: req.body.propertyCode.trim(), _id: { $ne: req.params.id } });
+      if (existing) {
+        return res.status(400).json({ message: `Property code "${req.body.propertyCode}" is already assigned to another fixed asset.` });
+      }
+    }
     const updated = await FixedAsset.findByIdAndUpdate(req.params.id, req.body, { new: true });
     res.json({ message: "Fixed asset updated", updated });
   } catch (err) {
