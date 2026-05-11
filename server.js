@@ -694,6 +694,12 @@ app.get("/api/admin/equipment", async (req, res) => {
 
 app.post("/api/admin/equipment", async (req, res) => {
   try {
+    if (req.body.propertyCode && req.body.propertyCode.trim() !== "") {
+      const existing = await Equipment.findOne({ propertyCode: req.body.propertyCode.trim() });
+      if (existing) {
+        return res.status(400).json({ message: `Property code "${req.body.propertyCode}" is already assigned to another equipment item.` });
+      }
+    }
     req.body.remainingQuantity = req.body.quantity;
     const newItem = new Equipment(req.body);
     await newItem.save();
@@ -705,6 +711,12 @@ app.post("/api/admin/equipment", async (req, res) => {
 
 app.put("/api/admin/equipment/:id", async (req, res) => {
   try {
+    if (req.body.propertyCode && req.body.propertyCode.trim() !== "") {
+      const existing = await Equipment.findOne({ propertyCode: req.body.propertyCode.trim(), _id: { $ne: req.params.id } });
+      if (existing) {
+        return res.status(400).json({ message: `Property code "${req.body.propertyCode}" is already assigned to another equipment item.` });
+      }
+    }
     if (req.body.quantity) {
       req.body.remainingQuantity = req.body.quantity; 
     }
