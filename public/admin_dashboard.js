@@ -1,4 +1,4 @@
-// admin_dashboard.js
+// admin_dashboard.js 
 
 const API_BASE = "/api";
 const token = localStorage.getItem("adminToken");
@@ -145,6 +145,22 @@ document.addEventListener('click', function(event) {
         sidebar.classList.remove('mobile-open');
     }
 });
+
+// ====== AUTO-WRAP ALL DATA TABLES IN SCROLLABLE CONTAINERS ======
+function wrapTablesForScrolling() {
+  document.querySelectorAll("table").forEach(table => {
+    // Skip if already wrapped, or if inside a modal (modals have their own sizing)
+    if (table.closest(".table-scroll-wrapper") || table.closest(".inventory-table-wrapper")) return;
+    if (table.closest(".modal")) return;
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "table-scroll-wrapper";
+    table.parentNode.insertBefore(wrapper, table);
+    wrapper.appendChild(table);
+  });
+}
+
+document.addEventListener("DOMContentLoaded", wrapTablesForScrolling);
 
 // ====== GLOBAL SEARCH ======
 function filterTable() {
@@ -599,15 +615,25 @@ async function loadInventory() {
     };
 
     populateTable(equipment, "equipmentTable", item => `
-      <td>${item.dateReceived || ""}</td><td>${item.propertyCode || ""}</td><td>${item.itemName || ""}</td><td>${item.specification || ""}</td>
-      <td>${item.location || ""}</td><td>${item.quantity || "0"}</td><td>${item.remainingQuantity ?? 0}</td>
+      <td>${item.dateReceived || ""}</td>
+      <td>${item.propertyCode || ""}</td>
+      <td>${item.itemName || ""}</td>
+      <td>${item.description || ""}</td>
+      <td>${item.serialNumber || ""}</td>
+      <td>${item.nFEA || ""}</td>
+      <td>${item.expr1011 || ""}</td>
+      <td>${item.quantity || "0"}</td>
+      <td>${item.cost || ""}</td>
+      <td>${item.location || ""}</td>
+      <td>${item.status || ""}</td>
+      <td>${item.remainingQuantity ?? 0}</td>
       <td><button onclick="editMaterial('${item._id}', 'equipment')">Edit</button> <button class="add-qty-btn" onclick="openAddQtyModal('${item._id}', 'equipment', '${(item.itemName||'').replace(/'/g,"\\'")}')">+ Qty</button>
       <button onclick="deleteMaterial('${item._id}', 'equipment')">Delete</button></td>
     `, "No equipment found in database.");
 
     populateTable(chemicals, "chemicalsTable", item => `
       <td>${item.barcode || ""}</td><td>${item.location || ""}</td><td>${item.dateIn || ""}</td><td>${item.chemicalName || ""}</td>
-      <td>${item.casNumber || ""}</td><td>${item.quantity ?? 0}</td><td>${item.remainingQuantity ?? 0}</td><td>${item.status || "Available"}</td>
+      <td>${item.casNumber || ""}</td><td>${item.containerSize || ""}</td><td>${item.remainingQuantity ?? 0}</td><td>${item.status || "Available"}</td>
       <td>${item.units || ""}</td><td>${item.state || ""}</td>
       <td><button onclick="editMaterial('${item._id}', 'chemicals')">Edit</button> <button class="add-qty-btn" onclick="openAddQtyModal('${item._id}', 'chemicals', '${(item.chemicalName||'').replace(/'/g,"\\'")}')">+ Qty</button>
       <button onclick="deleteMaterial('${item._id}', 'chemicals')">Delete</button></td>
@@ -660,59 +686,356 @@ function closeInventoryModal() {
 }
 
 async function editMaterial(id, category) {
-    const tokenHeader = { Authorization: `Bearer ${token}` };
-    
-    try {
-        const res = await fetch(`${API_BASE}/admin/${category}`, { headers: tokenHeader });
-        const items = await res.json();
+  const tokenHeader = { Authorization: `Bearer ${token}` };
 
-        const item = items.find(i => String(i._id) === String(id));
+  try {
+    const res = await fetch(`${API_BASE}/admin/${category}`, { headers: tokenHeader });
+    const items = await res.json();
+    const item = items.find(i => String(i._id) === String(id));
+    if (!item) return alert("Item not found");
 
-        if (!item) return alert("Item not found");
+    const fieldsContainer = document.getElementById("inventoryModalFields");
+    fieldsContainer.innerHTML = "";
 
-        const fieldsContainer = document.getElementById("inventoryModalFields");
-        fieldsContainer.innerHTML = ""; 
-        
-        document.getElementById("editItemId").value = id;
-        document.getElementById("editItemCategory").value = category;
+    document.getElementById("editItemId").value = id;
+    document.getElementById("editItemCategory").value = category;
 
-        // Fields to skip (not editable by user)
-        const skipFields = ['_id', '__v', 'remainingQuantity', 'createdAt', 'updatedAt'];
-        
-        Object.keys(item).forEach(key => {
-            if (!skipFields.includes(key)) {
-                const fieldGroup = document.createElement("div");
-                fieldGroup.className = "form-group";
+    // ── CHEMICAL: render smart dropdowns ──────────────────────────────
+    if (category === "chemicals") {
 
-                let labelText = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+      // Build CC number options
+      let ccOptions = "";
+      for (let i = 1; i <= 95; i++) {
+        const num = String(i).padStart(2, "0");
+        ccOptions += `<option value="${num}">CC-${num}</option>`;
+      }
 
-                if (key === "dateReceived") labelText = "Date Received";
+      // Figure out which location group the saved value belongs to
+      const savedLoc = item.location || "";
+      const isCCLoc  = /^CC-\d{2}$/.test(savedLoc);
+      const savedCC  = isCCLoc ? savedLoc.replace("CC-", "") : "01";
+      const savedState = (item.state || "").toLowerCase();
 
-                if (category === "chemical" && key === "status") {
-                    fieldGroup.innerHTML = `
-                        <label>Status</label>
-                        <select name="status" required>
-                            <option value="Available" ${item.status === "Available" ? "selected" : ""}>Available</option>
-                            <option value="Consumed" ${item.status === "Consumed" ? "selected" : ""}>Consumed</option>
-                        </select>
-                    `;
-                } else {
-                    fieldGroup.innerHTML = `
-                        <label>${labelText}</label>
-                        <input type="text" name="${key}" value="${item[key] || ''}">
-                    `;
-                }
+      const locGroupVal = isCCLoc ? "cc"
+        : savedLoc === "Corrosive Cabinet"          ? "corrosive"
+        : savedLoc === "Fume Hood"                  ? "fume"
+        : savedLoc === "Flammables Cabinet"         ? "flammable"
+        : savedLoc === "Cold Storage / Refrigerator"? "cold"
+        : savedLoc === ""                           ? ""
+        : "others";
 
-                fieldsContainer.appendChild(fieldGroup);
-            }
-        });
+      const othersLocVal = locGroupVal === "others" ? savedLoc : "";
 
-        document.getElementById("inventoryModal").style.display = "flex";
+      // Units
+      const savedUnits = item.units || "";
+      const knownUnits = ["mL","L","g","kg","mg","mol"];
+      const isKnownUnit = knownUnits.includes(savedUnits);
+      const unitGroupVal = isKnownUnit ? savedUnits : (savedUnits ? "others" : "");
+      const othersUnitVal = !isKnownUnit ? savedUnits : "";
 
-    } catch (err) {
-        console.error("Error:", err);
-        alert("Could not load item details.");
+      fieldsContainer.innerHTML = `
+        <div class="form-group">
+          <label>Barcode</label>
+          <input type="text" name="barcode" value="${item.barcode || ""}">
+        </div>
+
+        <div class="form-group">
+          <label>Location <span style="color:#ff6b6b;">*</span></label>
+          <select id="editLocationGroup" name="_locationGroup"
+            onchange="handleEditLocationChange()"
+            style="margin-bottom:6px;">
+            <option value="">-- Select Location --</option>
+            <option value="cc"        ${locGroupVal==="cc"        ?"selected":""}>CC-## (Cabinet)</option>
+            <option value="corrosive" ${locGroupVal==="corrosive" ?"selected":""}>Corrosive Cabinet</option>
+            <option value="fume"      ${locGroupVal==="fume"      ?"selected":""}>Fume Hood</option>
+            <option value="flammable" ${locGroupVal==="flammable" ?"selected":""}>Flammables Cabinet</option>
+            <option value="cold"      ${locGroupVal==="cold"      ?"selected":""}>Cold Storage / Refrigerator</option>
+            <option value="others"    ${locGroupVal==="others"    ?"selected":""}>Others</option>
+          </select>
+
+          <div id="editCCNumberWrapper"
+            style="display:${locGroupVal==="cc"?"block":"none"}; margin-bottom:6px;">
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span style="color:#fff; font-weight:600;">CC-</span>
+              <select id="editCCNumber" style="width:90px;"
+                onchange="syncEditLocationValue()">
+                ${ccOptions.replace(
+                  `value="${savedCC}"`,
+                  `value="${savedCC}" selected`
+                )}
+              </select>
+            </div>
+          </div>
+
+          <div id="editLocationOthersWrapper"
+            style="display:${locGroupVal==="others"?"block":"none"}; margin-bottom:6px;">
+            <input type="text" id="editLocationOthers"
+              placeholder="Specify location..."
+              value="${othersLocVal}"
+              oninput="syncEditLocationValue()">
+          </div>
+
+          <input type="hidden" id="editLocationFinal" name="location"
+            value="${savedLoc}">
+          <small id="editLocationMsg"
+            style="color:#ff6b6b; display:none; font-size:0.8rem;">
+            Location is required.
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label>Date In <span style="color:#ff6b6b;">*</span></label>
+          <input type="date" name="dateIn" value="${item.dateIn || ""}">
+        </div>
+
+        <div class="form-group">
+          <label>Expiration Date
+            <span style="color:rgba(255,255,255,0.4); font-size:0.8rem;">(optional)</span>
+          </label>
+          <input type="date" id="editExpirationDate" name="expirationDate"
+            value="${item.expirationDate || ""}"
+            onchange="checkEditExpiry(this)">
+          <small id="editExpiredWarning"
+            style="color:#facc15; display:none; font-size:0.8rem;">
+            ⚠️ This chemical is already past its expiration date.
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label>Chemical Name <span style="color:#ff6b6b;">*</span></label>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <input type="text" name="chemicalName"
+              id="editChemicalName"
+              value="${item.chemicalName || ""}"
+              required style="flex:1; margin-bottom:0;">
+            <button type="button" onclick="lookupFromPubChemEdit()"
+              style="padding:10px 14px; font-size:0.85rem;
+                     white-space:nowrap; margin-bottom:0;">
+              🔍 Lookup
+            </button>
+          </div>
+          <small id="editPubchemStatus"
+            style="font-size:0.8rem; color:rgba(255,255,255,0.5);
+                   display:block; margin-bottom:8px;">
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label>CAS # <span style="color:#ff6b6b;">*</span></label>
+          <input type="text" name="casNumber" id="editCASNumber"
+            value="${item.casNumber || ""}" required>
+        </div>
+
+        <div class="form-group">
+          <label>Container Size <span style="color:#ff6b6b;">*</span></label>
+          <input type="text" name="containerSize"
+            value="${item.containerSize || ""}" required>
+        </div>
+
+        <div class="form-group">
+          <label>Total Quantity</label>
+          <input type="number" name="quantity" min="1"
+            value="${item.quantity ?? 0}">
+          <small style="color:rgba(255,255,255,0.4); font-size:0.75rem;">
+            Changing this directly edits the total. Use "+ Qty" button for new deliveries.
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label>Remaining Quantity</label>
+          <input type="number" name="remainingQuantity" min="0"
+            value="${item.remainingQuantity ?? 0}">
+          <small style="color:rgba(255,255,255,0.4); font-size:0.75rem;">
+            Adjust if the physical count differs from what the system shows.
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label>Status <span style="color:#ff6b6b;">*</span></label>
+          <select name="status">
+            <option value="Available"
+              ${item.status === "Available" ? "selected" : ""}>
+              Available
+            </option>
+            <option value="Consumed"
+              ${item.status === "Consumed" ? "selected" : ""}>
+              Consumed
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Units <span style="color:#ff6b6b;">*</span></label>
+          <select id="editUnitsGroup" onchange="handleEditUnitsChange()"
+            style="margin-bottom:6px;">
+            <option value="">-- Select Units --</option>
+            <option value="mL" ${unitGroupVal==="mL" ?"selected":""}>mL</option>
+            <option value="L"  ${unitGroupVal==="L"  ?"selected":""}>L</option>
+            <option value="g"  ${unitGroupVal==="g"  ?"selected":""}>g</option>
+            <option value="kg" ${unitGroupVal==="kg" ?"selected":""}>kg</option>
+            <option value="mg" ${unitGroupVal==="mg" ?"selected":""}>mg</option>
+            <option value="mol"${unitGroupVal==="mol"?"selected":""}>mol</option>
+            <option value="others"${unitGroupVal==="others"?"selected":""}>Others</option>
+          </select>
+          <div id="editUnitsOthersWrapper"
+            style="display:${unitGroupVal==="others"?"block":"none"};">
+            <input type="text" id="editUnitsOthers"
+              placeholder="Specify units (letters only)..."
+              value="${othersUnitVal}"
+              oninput="syncEditUnitsValue()">
+          </div>
+          <input type="hidden" id="editUnitsFinal" name="units"
+            value="${savedUnits}">
+          <small id="editUnitsMsg"
+            style="color:#ff6b6b; display:none; font-size:0.8rem;">
+            Units are required and must contain letters only.
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label>State <span style="color:#ff6b6b;">*</span></label>
+          <select name="state">
+            <option value="">-- Select State --</option>
+            <option value="solid"   ${savedState==="solid"  ?"selected":""}>Solid</option>
+            <option value="liquid"  ${savedState==="liquid" ?"selected":""}>Liquid</option>
+            <option value="gas"     ${savedState==="gas"    ?"selected":""}>Gas</option>
+          </select>
+        </div>
+      `;
+
+      // Check expiry on load if date already exists
+      if (item.expirationDate) {
+        checkEditExpiry(
+          document.getElementById("editExpirationDate")
+        );
+      }
+
+    // ── EQUIPMENT: render dropdowns for Status and Location ───────────
+    } else if (category === "equipment") {
+
+      let ccLocOptions = "";
+      for (let i = 301; i <= 308; i++) {
+        ccLocOptions += `<option value="CSCS-PSD/Chemistry Stockroom (PCH-${i})">CSCS-PSD/Chemistry Stockroom (PCH-${i})</option>`;
+      }
+
+      const savedLoc = item.location || "";
+      const knownLocs = [];
+      for (let i = 301; i <= 308; i++) knownLocs.push(`CSCS-PSD/Chemistry Stockroom (PCH-${i})`);
+      knownLocs.push("CSCS-PSD/Research Laboratory (PCH-309/310)");
+      const isKnownLoc = knownLocs.includes(savedLoc);
+      const locGroupVal = isKnownLoc ? savedLoc : (savedLoc ? "others" : "");
+      const othersLocVal = !isKnownLoc ? savedLoc : "";
+
+      const savedStatus = item.status || "";
+
+      fieldsContainer.innerHTML = `
+        <div class="form-group">
+          <label>Date Received</label>
+          <input type="date" name="dateReceived" value="${item.dateReceived || ""}">
+        </div>
+
+        <div class="form-group">
+          <label>Property Code</label>
+          <input type="text" name="propertyCode" value="${item.propertyCode || ""}">
+        </div>
+
+        <div class="form-group">
+          <label>Item Name</label>
+          <input type="text" name="itemName" value="${item.itemName || ""}">
+        </div>
+
+        <div class="form-group">
+          <label>Description</label>
+          <input type="text" name="description" value="${item.description || ""}">
+        </div>
+
+        <div class="form-group">
+          <label>Serial Number</label>
+          <input type="text" name="serialNumber" value="${item.serialNumber || ""}">
+        </div>
+
+        <div class="form-group">
+          <label>nFEA</label>
+          <input type="text" name="nFEA" value="${item.nFEA || ""}">
+        </div>
+
+        <div class="form-group">
+          <label>Expr1011</label>
+          <input type="text" name="expr1011" value="${item.expr1011 || ""}">
+        </div>
+
+        <div class="form-group">
+          <label>Quantity</label>
+          <input type="number" name="quantity" min="0" value="${item.quantity ?? 0}">
+        </div>
+
+        <div class="form-group">
+          <label>Remaining Quantity</label>
+          <input type="number" name="remainingQuantity" min="0" value="${item.remainingQuantity ?? 0}">
+          <small style="color:rgba(255,255,255,0.4); font-size:0.75rem;">
+            Adjust if the physical count differs from what the system shows.
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label>Cost</label>
+          <input type="number" name="cost" step="0.01" value="${item.cost ?? ""}">
+        </div>
+
+        <div class="form-group">
+          <label>Location</label>
+          <select id="editEquipLocationSelect" onchange="handleEditEquipLocationChange()" style="margin-bottom:6px;">
+            <option value="">-- Select Location --</option>
+            ${ccLocOptions.replace(`value="${savedLoc}"`, `value="${savedLoc}" selected`)}
+            <option value="CSCS-PSD/Research Laboratory (PCH-309/310)" ${locGroupVal==="CSCS-PSD/Research Laboratory (PCH-309/310)"?"selected":""}>CSCS-PSD/Research Laboratory (PCH-309/310)</option>
+            <option value="others" ${locGroupVal==="others"?"selected":""}>Others</option>
+          </select>
+          <div id="editEquipLocationOthersWrapper" style="display:${locGroupVal==="others"?"block":"none"}; margin-bottom:6px;">
+            <input type="text" id="editEquipLocationOthers" placeholder="Specify location..."
+              value="${othersLocVal}" oninput="syncEditEquipLocationValue()">
+          </div>
+          <input type="hidden" id="editEquipLocationFinal" name="location" value="${savedLoc}">
+        </div>
+
+        <div class="form-group">
+          <label>Status</label>
+          <select name="status">
+            <option value="Active" ${savedStatus==="Active"?"selected":""}>Active</option>
+            <option value="Defective" ${savedStatus==="Defective"?"selected":""}>Defective</option>
+          </select>
+        </div>
+      `;
+
+    // ── ALL OTHER CATEGORIES: keep existing dynamic renderer ──────────
+    } else {
+      const skipFields = ["_id", "__v", "createdAt", "updatedAt"];
+
+      Object.keys(item).forEach(key => {
+        if (skipFields.includes(key)) return;
+
+        const fieldGroup = document.createElement("div");
+        fieldGroup.className = "form-group";
+
+        let labelText = key
+          .replace(/([A-Z])/g, " $1")
+          .replace(/^./, s => s.toUpperCase());
+
+        if (key === "dateReceived") labelText = "Date Received";
+
+        fieldGroup.innerHTML = `
+          <label>${labelText}</label>
+          <input type="text" name="${key}" value="${item[key] ?? ""}">
+        `;
+        fieldsContainer.appendChild(fieldGroup);
+      });
     }
+
+    document.getElementById("inventoryModal").style.display = "flex";
+
+  } catch (err) {
+    console.error("Error:", err);
+    alert("Could not load item details.");
+  }
 }
 
 // Form Submission Logic
@@ -725,6 +1048,8 @@ document.getElementById("inventoryEditForm").onsubmit = async (e) => {
     
     const formData = new FormData(e.target);
     const updatedData = Object.fromEntries(formData.entries());
+    delete updatedData._locationGroup;
+    delete updatedData.editUnitsGroup; 
 
     const res = await fetch(`${API_BASE}/admin/${category}/${id}`, {
         method: "PUT",
@@ -763,6 +1088,175 @@ window.onclick = function(event) {
     if (event.target == modal) {
         closeInventoryModal();
     }
+}
+
+// ====== EDIT MODAL HELPERS  ======
+
+function handleEditLocationChange() {
+  const group = document.getElementById("editLocationGroup").value;
+  const ccWrapper = document.getElementById("editCCNumberWrapper");
+  const othersWrapper = document.getElementById("editLocationOthersWrapper");
+  const finalInput = document.getElementById("editLocationFinal");
+
+  ccWrapper.style.display = "none";
+  othersWrapper.style.display = "none";
+
+  if (group === "cc") {
+    ccWrapper.style.display = "block";
+    const num = document.getElementById("editCCNumber").value;
+    finalInput.value = `CC-${num}`;
+  } else if (group === "others") {
+    othersWrapper.style.display = "block";
+    finalInput.value = document.getElementById("editLocationOthers").value.trim();
+  } else if (group === "corrosive") {
+    finalInput.value = "Corrosive Cabinet";
+  } else if (group === "fume") {
+    finalInput.value = "Fume Hood";
+  } else if (group === "flammable") {
+    finalInput.value = "Flammables Cabinet";
+  } else if (group === "cold") {
+    finalInput.value = "Cold Storage / Refrigerator";
+  } else {
+    finalInput.value = "";
+  }
+}
+
+function syncEditLocationValue() {
+  const group = document.getElementById("editLocationGroup").value;
+  const finalInput = document.getElementById("editLocationFinal");
+
+  if (group === "cc") {
+    const num = document.getElementById("editCCNumber").value;
+    finalInput.value = `CC-${num}`;
+  } else if (group === "others") {
+    finalInput.value = document.getElementById("editLocationOthers").value.trim();
+  }
+}
+
+function handleEditUnitsChange() {
+  const sel = document.getElementById("editUnitsGroup").value;
+  const othersWrapper = document.getElementById("editUnitsOthersWrapper");
+  const finalInput = document.getElementById("editUnitsFinal");
+
+  if (sel === "others") {
+    othersWrapper.style.display = "block";
+    finalInput.value = "";
+  } else {
+    othersWrapper.style.display = "none";
+    finalInput.value = sel;
+  }
+}
+
+function syncEditUnitsValue() {
+  const val = document.getElementById("editUnitsOthers").value.trim();
+  document.getElementById("editUnitsFinal").value = val;
+}
+
+function checkEditExpiry(input) {
+  const warn = document.getElementById("editExpiredWarning");
+  if (!warn) return;
+  if (input.value && new Date(input.value) < new Date()) {
+    warn.style.display = "block";
+  } else {
+    warn.style.display = "none";
+  }
+}
+
+async function lookupFromPubChemEdit() {
+  const nameInput  = document.getElementById("editChemicalName");
+  const statusEl   = document.getElementById("editPubchemStatus");
+  const casInput   = document.getElementById("editCASNumber");
+  const stateSelect = document.querySelector("#inventoryModalFields select[name='state']");
+
+  const name = nameInput?.value.trim();
+  if (!name) {
+    statusEl.style.color = "#ff6b6b";
+    statusEl.textContent = "⚠️ Enter a chemical name first.";
+    return;
+  }
+
+  statusEl.style.color = "rgba(255,255,255,0.5)";
+  statusEl.textContent = "🔄 Looking up PubChem...";
+
+  try {
+    const cidRes = await fetch(
+      `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/` +
+      `${encodeURIComponent(name)}/cids/JSON`
+    );
+    if (!cidRes.ok) throw new Error("Chemical not found on PubChem.");
+    const cidData = await cidRes.json();
+    const cid = cidData.IdentifierList?.CID?.[0];
+    if (!cid) throw new Error("No match found for that chemical name.");
+
+    const synRes = await fetch(
+      `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/synonyms/JSON`
+    );
+    const synData = await synRes.json();
+    const synonyms = synData.InformationList?.Information?.[0]?.Synonym || [];
+    const cas = synonyms.find(s => /^\d{2,7}-\d{2}-\d$/.test(s)) || "";
+
+    let state = "";
+    try {
+      const detailRes = await fetch(
+        `https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/` +
+        `${cid}/JSON?heading=Physical+Description`
+      );
+      const detailData = await detailRes.json();
+      const sections = detailData.Record?.Section || [];
+      for (const sec of sections) {
+        const found = sec.Section?.find(
+          s => s.TOCHeading === "Physical Description"
+        );
+        if (found) {
+          const text =
+            found.Information?.[0]?.Value?.StringWithMarkup?.[0]?.String || "";
+          if (/liquid/i.test(text))      state = "liquid";
+          else if (/solid/i.test(text))  state = "solid";
+          else if (/gas/i.test(text))    state = "gas";
+          break;
+        }
+      }
+    } catch { /* optional, skip silently */ }
+
+    if (cas) casInput.value = cas;
+    if (state && stateSelect) stateSelect.value = state;
+
+    const filled = [];
+    if (cas)   filled.push(`CAS: ${cas}`);
+    if (state) filled.push(`State: ${state}`);
+
+    if (filled.length > 0) {
+      statusEl.style.color = "#4ade80";
+      statusEl.textContent =
+        `✅ Found — ${filled.join(" · ")}. Please verify before saving.`;
+    } else {
+      statusEl.style.color = "#facc15";
+      statusEl.textContent =
+        "⚠️ Chemical found but CAS # and state could not be determined.";
+    }
+  } catch (err) {
+    statusEl.style.color = "#ff6b6b";
+    statusEl.textContent = `❌ ${err.message || "Lookup failed."}`;
+  }
+}
+
+function handleEditEquipLocationChange() {
+  const sel = document.getElementById("editEquipLocationSelect").value;
+  const othersWrapper = document.getElementById("editEquipLocationOthersWrapper");
+  const finalInput = document.getElementById("editEquipLocationFinal");
+
+  if (sel === "others") {
+    othersWrapper.style.display = "block";
+    finalInput.value = "";
+  } else {
+    othersWrapper.style.display = "none";
+    finalInput.value = sel;
+  }
+}
+
+function syncEditEquipLocationValue() {
+  document.getElementById("editEquipLocationFinal").value =
+    document.getElementById("editEquipLocationOthers").value.trim();
 }
 
 // ====== ADD QUANTITY MODAL ======
@@ -2513,56 +3007,128 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 // DITO LAGAY EXPORT CODE
 
+function getUnionKeys(data, skipKeys = ["_id", "__v", "createdAt", "updatedAt"]) {
+  const seen = new Set();
+  const keys = [];
+  data.forEach(item => {
+    Object.keys(item).forEach(k => {
+      if (!skipKeys.includes(k) && !seen.has(k)) {
+        seen.add(k);
+        keys.push(k);
+      }
+    });
+  });
+  return keys;
+}
+
 // Function to bind data to the specific export button
+// ── Explicit column maps — mirrors exactly what's shown in each table ──────
+const INVENTORY_EXPORT_CONFIG = {
+  equipment: {
+    label: "Equipment",
+    columns: ["Date Received","Property Code","Item Name","Description","Serial Number","nFEA","Expr1011","Quantity","Cost","Location","Status","Remaining"],
+    row: item => [
+      item.dateReceived || "",
+      item.propertyCode || "",
+      item.itemName || "",
+      item.description || "",
+      item.serialNumber || "",
+      item.nFEA || "",
+      item.expr1011 || "",
+      item.quantity ?? 0,
+      item.cost ?? "",
+      item.location || "",
+      item.status || "",
+      item.remainingQuantity ?? 0,
+    ]
+  },
+  chemicals: {
+    label: "Chemicals",
+    columns: ["Barcode","Location","Date In","Chemical Name","CAS #","Container Size","Remaining","Status","Units","State"],
+    row: item => [
+      item.barcode || "",
+      item.location || "",
+      item.dateIn || "",
+      item.chemicalName || "",
+      item.casNumber || "",
+      item.containerSize || "",   // matches header label; swap to item.quantity if you actually want to mirror the on-screen bug
+      item.remainingQuantity ?? 0,
+      item.status || "Available",
+      item.units || "",
+      item.state || "",
+    ]
+  },
+  glassware: {
+    label: "Glassware",
+    columns: ["Item","Description","Quantity","Remaining Quantity","Remarks"],
+    row: item => [
+      item.itemName || "",
+      item.description || "",
+      item.quantity || 0,
+      item.remainingQuantity ?? 0,
+      item.remarks || "",
+    ]
+  },
+  fixedAssets: {
+    label: "Fixed Assets",
+    columns: ["Date","Property Code","Item Name","Description","Serial Number","Location","nFEA","Quantity","Cost","Status"],
+    row: item => [
+      item.dateReceived || "",
+      item.propertyCode || "",
+      item.itemName || "",
+      item.description || "",
+      item.serialNumber || "",
+      item.location || "",
+      item.nFEA || "",
+      item.quantity || 0,
+      item.cost || "",
+      item.status || "",
+    ]
+  }
+};
+
 function setupExportButton(buttonId, data, filename) {
   const btn = document.getElementById(buttonId);
   if (!btn) return;
 
-  // Map filename prefix to category key for the styled builder
   const categoryMap = {
-    "equipment_inventory":   "equipment",
-    "chemicals_inventory":   "chemicals",
-    "glassware_inventory":   "glassware",
+    "equipment_inventory":    "equipment",
+    "chemicals_inventory":    "chemicals",
+    "glassware_inventory":    "glassware",
     "fixed_assets_inventory": "fixedAssets",
   };
-
-  const labelMap = {
-    "equipment_inventory":   "Equipment",
-    "chemicals_inventory":   "Chemicals",
-    "glassware_inventory":   "Glassware",
-    "fixed_assets_inventory": "Fixed Assets",
-  };
+  const categoryKey = categoryMap[filename];
 
   btn.onclick = () => {
     if (!data || data.length === 0) return alert("No data to export.");
-    exportSingleInventorySheet(data, filename, labelMap[filename] || filename);
+    exportSingleInventorySheet(data, filename, categoryKey);
   };
 }
 
-function exportSingleInventorySheet(data, filename, sheetLabel) {
+function exportSingleInventorySheet(data, filename, categoryKey) {
+  const config = INVENTORY_EXPORT_CONFIG[categoryKey];
+  if (!config) {
+    console.error("Unknown export category:", categoryKey);
+    return alert("Export configuration not found for this category.");
+  }
+
   const wb = XLSX.utils.book_new();
   const date = new Date().toISOString().split("T")[0];
   const generatedAt = new Date().toLocaleString();
 
-  // ── palette ──────────────────────────────────────────────────────────────
+  // ── palette (unchanged from before) ──────────────────────────────────────
   const C = {
-    navy:    { rgb: "1A2F5A" },
-    white:   { rgb: "FFFFFF" },
-    slate:   { rgb: "2E4A7A" },
-    colHdr:  { rgb: "D6E4F0" },
-    colHdrF: { rgb: "1A2F5A" },
-    meta:    { rgb: "EBF2FA" },
-    metaF:   { rgb: "2E4A7A" },
-    rowAlt:  { rgb: "F5F9FD" },
-    rowBase: { rgb: "FFFFFF" },
-    border:  { rgb: "BDD4E8" },
+    navy:    { rgb: "1A2F5A" }, white:   { rgb: "FFFFFF" },
+    slate:   { rgb: "2E4A7A" }, colHdr:  { rgb: "D6E4F0" },
+    colHdrF: { rgb: "1A2F5A" }, meta:    { rgb: "EBF2FA" },
+    metaF:   { rgb: "2E4A7A" }, rowAlt:  { rgb: "F5F9FD" },
+    rowBase: { rgb: "FFFFFF" }, border:  { rgb: "BDD4E8" },
     italic:  { rgb: "666666" },
   };
-
-  const thin      = (color) => ({ style: "thin", color });
+  const thin       = (color) => ({ style: "thin", color });
   const allBorders = (color) => ({ top: thin(color), bottom: thin(color), left: thin(color), right: thin(color) });
-  const font      = (opts = {}) => ({ name: "Arial", sz: opts.sz || 10, ...opts });
-  const align     = (h = "center", v = "center", wrap = false) => ({ horizontal: h, vertical: v, wrapText: wrap });
+  const font       = (opts = {}) => ({ name: "Arial", sz: opts.sz || 10, ...opts });
+  const align      = (h = "center", v = "center", wrap = false) => ({ horizontal: h, vertical: v, wrapText: wrap });
 
   const s = {
     title:        { font: font({ bold: true, sz: 16, color: C.white }),   fill: { patternType: "solid", fgColor: C.navy },  alignment: align("center") },
@@ -2577,30 +3143,18 @@ function exportSingleInventorySheet(data, filename, sheetLabel) {
   const sc    = (v, style) => ({ v, t: typeof v === "number" ? "n" : "s", s: style });
   const blank = (style)    => ({ v: "", t: "s", s: style });
 
-  // ── derive columns from actual data keys (strip mongo fields) ──────────────
-  const skipKeys = ["_id", "__v", "createdAt", "updatedAt"];
-  const columns = Object.keys(data[0])
-    .filter(k => !skipKeys.includes(k))
-    .map(k => k.replace(/([A-Z])/g, " $1").replace(/^./, s => s.toUpperCase()).trim());
-
-  const rawKeys = Object.keys(data[0]).filter(k => !skipKeys.includes(k));
-  const rows    = data.map(item => rawKeys.map(k => item[k] ?? ""));
+  // ── use the explicit config instead of getUnionKeys ─────────────────────
+  const columns = config.columns;
+  const rows    = data.map(config.row);
   const numCols = columns.length;
 
   const wsData = [
-    // Row 1 — title
-    [sc(`${sheetLabel} Inventory`, s.title), ...Array(numCols - 1).fill(blank(s.title))],
-    // Row 2 — date
+    [sc(`${config.label} Inventory`, s.title), ...Array(numCols - 1).fill(blank(s.title))],
     [sc(`Exported: ${generatedAt}`, s.dateRange), ...Array(numCols - 1).fill(blank(s.dateRange))],
-    // Row 3 — total count
     [sc(`Total Records: ${data.length}`, s.generatedAt), ...Array(numCols - 1).fill(blank(s.generatedAt))],
-    // Row 4 — spacer
     Array(numCols).fill({ v: "", t: "s" }),
-    // Row 5 — section label
-    [sc(`${sheetLabel} — Full List`, s.sectionTitle), ...Array(numCols - 1).fill(blank(s.sectionTitle))],
-    // Row 6 — column headers
+    [sc(`${config.label} — Full List`, s.sectionTitle), ...Array(numCols - 1).fill(blank(s.sectionTitle))],
     columns.map(col => sc(col, s.colHeader)),
-    // Rows 7+ — data
     ...rows.map((row, i) => {
       const style = i % 2 === 0 ? s.dataEven : s.dataOdd;
       return row.map(val => ({ v: val, t: typeof val === "number" ? "n" : "s", s: style }));
@@ -2609,25 +3163,16 @@ function exportSingleInventorySheet(data, filename, sheetLabel) {
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-  ws["!merges"] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: numCols - 1 } },
-    { s: { r: 1, c: 0 }, e: { r: 1, c: numCols - 1 } },
-    { s: { r: 2, c: 0 }, e: { r: 2, c: numCols - 1 } },
-    { s: { r: 3, c: 0 }, e: { r: 3, c: numCols - 1 } },
-    { s: { r: 4, c: 0 }, e: { r: 4, c: numCols - 1 } },
-  ];
-
+  ws["!merges"] = [0,1,2,3,4].map(r => ({ s: { r, c: 0 }, e: { r, c: numCols - 1 } }));
   ws["!rows"] = [{ hpt: 32 }, { hpt: 18 }, { hpt: 16 }, { hpt: 8 }, { hpt: 22 }, { hpt: 20 }];
-
   ws["!cols"] = columns.map((col, ci) => {
     const allVals = [col, ...rows.map(r => String(r[ci] ?? ""))];
     return { wch: Math.min(Math.max(...allVals.map(v => String(v).length)) + 4, 35) };
   });
 
-  XLSX.utils.book_append_sheet(wb, ws, sheetLabel);
+  XLSX.utils.book_append_sheet(wb, ws, config.label);
   XLSX.writeFile(wb, `${filename}_${date}.xlsx`);
 }
-
 
 
 // Function to convert JSON to CSV and trigger download
@@ -2713,17 +3258,9 @@ function downloadCSV(data, filename) {
 }
 
 function exportFullInventoryToExcel(equipment, chemicals, glassware, fixedAssets) {
-  // Reuse the single-sheet builder for each category, combined into one workbook
   const wb = XLSX.utils.book_new();
   const date = new Date().toISOString().split("T")[0];
   const generatedAt = new Date().toLocaleString();
-
-  const categories = [
-    { data: equipment,   label: "Equipment"    },
-    { data: chemicals,   label: "Chemicals"    },
-    { data: glassware,   label: "Glassware"    },
-    { data: fixedAssets, label: "Fixed Assets" },
-  ];
 
   // ── same styles as exportSingleInventorySheet ─────────────────────────────
   const C = {
@@ -2749,27 +3286,38 @@ function exportFullInventoryToExcel(equipment, chemicals, glassware, fixedAssets
   };
   const sc    = (v, style) => ({ v, t: typeof v === "number" ? "n" : "s", s: style });
   const blank = (style)    => ({ v: "", t: "s", s: style });
-  const skipKeys = ["_id", "__v", "createdAt", "updatedAt"];
 
-  categories.forEach(({ data, label }) => {
-    if (!data || data.length === 0) return;
+  // ── explicit categories, same order every time, uses same config as single export ──
+  const categoryOrder = ["equipment", "chemicals", "glassware", "fixedAssets"];
+  const dataMap = { equipment, chemicals, glassware, fixedAssets };
 
-    const rawKeys = Object.keys(data[0]).filter(k => !skipKeys.includes(k));
-    const columns = rawKeys.map(k => k.replace(/([A-Z])/g, " $1").replace(/^./, s => s.toUpperCase()).trim());
-    const rows    = data.map(item => rawKeys.map(k => item[k] ?? ""));
+  categoryOrder.forEach(categoryKey => {
+    const config = INVENTORY_EXPORT_CONFIG[categoryKey];
+    const data   = dataMap[categoryKey] || [];
+
+    const columns = config.columns;
+    const rows    = data.map(config.row);
     const numCols = columns.length;
+
+    const bodyRows = rows.length > 0
+      ? rows.map((row, i) => {
+          const style = i % 2 === 0 ? s.dataEven : s.dataOdd;
+          return row.map(val => ({ v: val, t: typeof val === "number" ? "n" : "s", s: style }));
+        })
+      : [ columns.map((_, ci) =>
+          ci === 0
+            ? { v: "No records found", t: "s", s: s.dataEven }
+            : { v: "", t: "s", s: s.dataEven }
+        ) ];
 
     const wsData = [
       [sc("Full Inventory Report", s.title),         ...Array(numCols - 1).fill(blank(s.title))],
       [sc(`Exported: ${generatedAt}`, s.dateRange),  ...Array(numCols - 1).fill(blank(s.dateRange))],
       [sc(`Total Records: ${data.length}`, s.generatedAt), ...Array(numCols - 1).fill(blank(s.generatedAt))],
       Array(numCols).fill({ v: "", t: "s" }),
-      [sc(`${label} — Full List`, s.sectionTitle),   ...Array(numCols - 1).fill(blank(s.sectionTitle))],
+      [sc(`${config.label} — Full List`, s.sectionTitle),   ...Array(numCols - 1).fill(blank(s.sectionTitle))],
       columns.map(col => sc(col, s.colHeader)),
-      ...rows.map((row, i) => {
-        const style = i % 2 === 0 ? s.dataEven : s.dataOdd;
-        return row.map(val => ({ v: val, t: typeof val === "number" ? "n" : "s", s: style }));
-      }),
+      ...bodyRows,
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(wsData);
@@ -2780,7 +3328,7 @@ function exportFullInventoryToExcel(equipment, chemicals, glassware, fixedAssets
       return { wch: Math.min(Math.max(...allVals.map(v => String(v).length)) + 4, 35) };
     });
 
-    XLSX.utils.book_append_sheet(wb, ws, label);
+    XLSX.utils.book_append_sheet(wb, ws, config.label);
   });
 
   XLSX.writeFile(wb, `Full_Inventory_Report_${date}.xlsx`);
@@ -3093,6 +3641,188 @@ async function deleteStudent(id, name) {
   }
 }
 
+async function lookupFromPubChem() {
+  const nameInput = document.getElementById("itemChemicalName");
+  const statusEl  = document.getElementById("pubchemStatus");
+  const casInput  = document.getElementById("itemCAS");
+  const stateInput = document.getElementById("itemState");
+
+  const name = nameInput?.value.trim();
+  if (!name) {
+    statusEl.style.color = "#ff6b6b";
+    statusEl.textContent = "⚠️ Enter a chemical name first.";
+    return;
+  }
+
+  statusEl.style.color = "rgba(255,255,255,0.5)";
+  statusEl.textContent = "🔄 Looking up PubChem...";
+
+  const btn = document.getElementById("pubchemLookupBtn");
+  if (btn) btn.disabled = true;
+
+  try {
+    // Step 1: Get CID from chemical name
+    const cidRes = await fetch(
+      `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${encodeURIComponent(name)}/cids/JSON`
+    );
+    if (!cidRes.ok) throw new Error("Chemical not found on PubChem.");
+    const cidData = await cidRes.json();
+    const cid = cidData.IdentifierList?.CID?.[0];
+    if (!cid) throw new Error("No match found for that chemical name.");
+
+    // Step 2: Get synonyms to extract CAS number
+    const synRes = await fetch(
+      `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/synonyms/JSON`
+    );
+    const synData = await synRes.json();
+    const synonyms = synData.InformationList?.Information?.[0]?.Synonym || [];
+
+    // CAS numbers follow the pattern: digits-digits-digit (e.g. 7664-93-9)
+    const cas = synonyms.find(s => /^\d{2,7}-\d{2}-\d$/.test(s)) || "";
+
+    // Step 3: Get physical properties (state)
+    const propRes = await fetch(
+      `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/property/MolecularFormula,IUPACName/JSON`
+    );
+    const propData = await propRes.json();
+    const props = propData.PropertyTable?.Properties?.[0];
+
+    // Step 4: Try to get physical state from PubChem sections
+    let state = "";
+    try {
+      const detailRes = await fetch(
+        `https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/${cid}/JSON?heading=Physical+Description`
+      );
+      const detailData = await detailRes.json();
+      const sections = detailData.Record?.Section || [];
+      
+      for (const sec of sections) {
+        const found = sec.Section?.find(s => s.TOCHeading === "Physical Description");
+        if (found) {
+          const text = found.Information?.[0]?.Value?.StringWithMarkup?.[0]?.String || "";
+          if (/liquid/i.test(text)) state = "liquid";
+          else if (/solid/i.test(text)) state = "solid";
+          else if (/gas/i.test(text)) state = "gas";
+          break;
+        }
+      }
+    } catch {
+      // Physical state lookup is optional — silently skip if it fails
+    }
+
+    // Step 5: Fill in the form fields
+    if (cas) {
+      casInput.value = cas;
+    }
+    if (state && stateInput) {
+      stateInput.value = state;
+    }
+
+    // Show what was found
+    const filled = [];
+    if (cas)   filled.push(`CAS: ${cas}`);
+    if (state) filled.push(`State: ${state}`);
+
+    if (filled.length > 0) {
+      statusEl.style.color = "#4ade80";
+      statusEl.textContent = `✅ Found — ${filled.join(" · ")}. Please verify before saving.`;
+    } else {
+      statusEl.style.color = "#facc15";
+      statusEl.textContent = "⚠️ Chemical found on PubChem but CAS # and state could not be determined. Fill in manually.";
+    }
+
+  } catch (err) {
+    console.warn("PubChem lookup error:", err);
+    statusEl.style.color = "#ff6b6b";
+    statusEl.textContent = `❌ ${err.message || "Lookup failed. You can still fill in manually."}`;
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+// ====== LOCATION PICKER HELPERS ======
+function handleLocationGroupChange() {
+  const group = document.getElementById("itemLocationGroup").value;
+  const ccWrapper = document.getElementById("ccNumberWrapper");
+  const othersWrapper = document.getElementById("locationOthersWrapper");
+  const locationInput = document.getElementById("itemLocation");
+
+  // Hide both sub-inputs first
+  ccWrapper.style.display = "none";
+  othersWrapper.style.display = "none";
+
+  if (group === "cc") {
+    ccWrapper.style.display = "block";
+    // Set the value immediately using whatever number is currently selected
+    const num = document.getElementById("itemCCNumber").value;
+    locationInput.value = `CC-${num}`;
+  } else if (group === "others") {
+    othersWrapper.style.display = "block";
+    locationInput.value = "";
+  } else if (group === "corrosive") {
+    locationInput.value = "Corrosive Cabinet";
+  } else if (group === "fume") {
+    locationInput.value = "Fume Hood";
+  } else if (group === "flammable") {
+    locationInput.value = "Flammables Cabinet";
+  } else if (group === "cold") {
+    locationInput.value = "Cold Storage / Refrigerator";
+  } else {
+    locationInput.value = "";
+  }
+}
+
+function syncLocationValue() {
+  const group = document.getElementById("itemLocationGroup").value;
+  const locationInput = document.getElementById("itemLocation");
+
+  if (group === "cc") {
+    const num = document.getElementById("itemCCNumber").value;
+    locationInput.value = `CC-${num}`;
+  } else if (group === "others") {
+    locationInput.value = document.getElementById("itemLocationOthers").value.trim();
+  }
+}
+
+function handleEquipLocationChange() {
+  const sel = document.getElementById("itemLocationSelect").value;
+  const othersWrapper = document.getElementById("equipLocationOthersWrapper");
+  const finalInput = document.getElementById("itemLocation");
+
+  if (sel === "others") {
+    othersWrapper.style.display = "block";
+    finalInput.value = "";
+  } else {
+    othersWrapper.style.display = "none";
+    finalInput.value = sel;
+  }
+}
+
+function syncEquipLocationValue() {
+  document.getElementById("itemLocation").value =
+    document.getElementById("equipLocationOthers").value.trim();
+}
+
+// ====== UNITS PICKER HELPERS ======
+function handleUnitsChange() {
+  const sel = document.getElementById("itemUnits").value;
+  const othersWrapper = document.getElementById("unitsOthersWrapper");
+  const finalInput = document.getElementById("itemUnitsFinal");
+
+  if (sel === "others") {
+    othersWrapper.style.display = "block";
+    finalInput.value = "";
+  } else {
+    othersWrapper.style.display = "none";
+    finalInput.value = sel;
+  }
+}
+
+function syncUnitsValue() {
+  const val = document.getElementById("itemUnitsOthers").value.trim();
+  document.getElementById("itemUnitsFinal").value = val;
+}
+
 // ====== REPORTS ======
 let currentReportData = null;
 let currentReportType = null;
@@ -3197,7 +3927,7 @@ async function generateReport() {
 
     // ── Build the table ────────────────────────────────────────────────
     container.innerHTML = buildReportTable(type, data);
-
+    wrapTablesForScrolling();
     document.getElementById("exportReportCSV").style.display = "inline-block";
     document.getElementById("exportReportExcel").style.display = "inline-block";
 
@@ -3227,64 +3957,117 @@ function buildReportTable(type, data) {
   const fmtDate = d => d ? new Date(d).toLocaleDateString() : "—";
 
   if (type === "inventory") {
-    const cats = ["equipment", "chemicals", "glassware", "fixedAssets"];
-    const labels = ["Equipment", "Chemicals", "Glassware", "Fixed Assets"];
-    let html = "";
-    cats.forEach((c, i) => {
-      const items = data[c].items;
-      html += `<h3 style="margin:18px 0 10px;font-size:15px;font-weight:500;">${labels[i]}
-        <span style="font-size:12px;color:rgba(255,255,255,0.4);font-weight:400;margin-left:8px;">
-          Total: ${data[c].totalQty} | Remaining: ${data[c].remainingQty} | Low stock: ${data[c].lowStockCount}
-        </span></h3>`;
+  const cats   = ["equipment", "chemicals", "glassware", "fixedAssets"];
+  const labels = ["Equipment", "Chemicals", "Glassware", "Fixed Assets"];
+  let html = "";
 
-      // Equipment and Fixed Assets have property code
-      if (c === "equipment" || c === "fixedAssets") {
-        html += `<table ${tableStyle}><thead><tr>
-          <th ${thStyle}>Name</th>
-          <th ${thStyle}>Property Code</th>
-          <th ${thStyle}>Specs</th>
-          <th ${thStyle}>Location</th>
-          <th ${thStyle}>Total</th>
-          <th ${thStyle}>Remaining</th>
-          <th ${thStyle}>Status</th>
-          </tr></thead><tbody>`;
-        items.forEach(item => {
-          html += `<tr>
-            <td ${tdStyle}>${item.name}</td>
-            <td ${tdStyle}>${item.propertyCode || "—"}</td>
-            <td ${tdStyle}>${item.specs || "—"}</td>
-            <td ${tdStyle}>${item.location || "—"}</td>
-            <td ${tdStyle}>${item.total}</td>
-            <td ${tdStyle}>${item.remaining}</td>
-            <td ${tdStyle}>${statusBadge(item.status)}</td>
-          </tr>`;
-        });
-      } else {
-        // Chemicals and Glassware — no property code column
-        html += `<table ${tableStyle}><thead><tr>
-          <th ${thStyle}>Name</th>
-          <th ${thStyle}>Specs</th>
-          <th ${thStyle}>Location</th>
-          <th ${thStyle}>Total</th>
-          <th ${thStyle}>Remaining</th>
-          <th ${thStyle}>Status</th>
-          </tr></thead><tbody>`;
-        items.forEach(item => {
-          html += `<tr>
-            <td ${tdStyle}>${item.name}</td>
-            <td ${tdStyle}>${item.specs || "—"}</td>
-            <td ${tdStyle}>${item.location || "—"}</td>
-            <td ${tdStyle}>${item.total}</td>
-            <td ${tdStyle}>${item.remaining}</td>
-            <td ${tdStyle}>${statusBadge(item.status)}</td>
-          </tr>`;
-        });
-      }
+  cats.forEach((c, i) => {
+    const cat = data[c];
+    const items = cat.items;
+    const remLabel = c === "fixedAssets" ? "" : ` | Remaining: ${cat.remainingQty}`;
+    html += `<h3 style="margin:18px 0 10px;font-size:15px;font-weight:500;">${labels[i]}
+      <span style="font-size:12px;color:rgba(255,255,255,0.4);font-weight:400;margin-left:8px;">
+        Total: ${cat.totalQty}${remLabel} | Low stock: ${cat.lowStockCount}
+      </span></h3>`;
 
-      html += "</tbody></table>";
-    });
-    return html;
-  }
+    if (c === "equipment") {
+      html += `<table ${tableStyle}><thead><tr>
+        <th ${thStyle}>Name</th><th ${thStyle}>Property Code</th>
+        <th ${thStyle}>Description</th><th ${thStyle}>Serial No.</th>
+        <th ${thStyle}>nFEA</th><th ${thStyle}>Expr1011</th>
+        <th ${thStyle}>Total</th><th ${thStyle}>Remaining</th>
+        <th ${thStyle}>Cost</th><th ${thStyle}>Location</th>
+        <th ${thStyle}>Status</th><th ${thStyle}>Stock</th>
+      </tr></thead><tbody>`;
+      items.forEach(item => {
+        html += `<tr>
+          <td ${tdStyle}>${item.name}</td>
+          <td ${tdStyle}>${item.propertyCode || "—"}</td>
+          <td ${tdStyle}>${item.description  || "—"}</td>
+          <td ${tdStyle}>${item.serialNumber || "—"}</td>
+          <td ${tdStyle}>${item.nFEA         || "—"}</td>
+          <td ${tdStyle}>${item.expr1011     || "—"}</td>
+          <td ${tdStyle}>${item.total}</td>
+          <td ${tdStyle}>${item.remaining}</td>
+          <td ${tdStyle}>${item.cost         || "—"}</td>
+          <td ${tdStyle}>${item.location     || "—"}</td>
+          <td ${tdStyle}>${item.status       || "—"}</td>
+          <td ${tdStyle}>${statusBadge(item.stockStatus)}</td>
+        </tr>`;
+      });
+
+    } else if (c === "fixedAssets") {
+      html += `<table ${tableStyle}><thead><tr>
+        <th ${thStyle}>Name</th><th ${thStyle}>Property Code</th>
+        <th ${thStyle}>Description</th><th ${thStyle}>Serial No.</th>
+        <th ${thStyle}>nFEA</th><th ${thStyle}>Total</th>
+        <th ${thStyle}>Cost</th><th ${thStyle}>Location</th>
+        <th ${thStyle}>Status</th><th ${thStyle}>Stock</th>
+      </tr></thead><tbody>`;
+      items.forEach(item => {
+        html += `<tr>
+          <td ${tdStyle}>${item.name}</td>
+          <td ${tdStyle}>${item.propertyCode || "—"}</td>
+          <td ${tdStyle}>${item.description  || "—"}</td>
+          <td ${tdStyle}>${item.serialNumber || "—"}</td>
+          <td ${tdStyle}>${item.nFEA         || "—"}</td>
+          <td ${tdStyle}>${item.total}</td>
+          <td ${tdStyle}>${item.cost         || "—"}</td>
+          <td ${tdStyle}>${item.location     || "—"}</td>
+          <td ${tdStyle}>${item.status       || "—"}</td>
+          <td ${tdStyle}>${statusBadge(item.stockStatus)}</td>
+        </tr>`;
+      });
+
+    } else if (c === "glassware") {
+      html += `<table ${tableStyle}><thead><tr>
+        <th ${thStyle}>Name</th><th ${thStyle}>Description</th>
+        <th ${thStyle}>Total</th><th ${thStyle}>Remaining</th>
+        <th ${thStyle}>Remarks</th><th ${thStyle}>Stock</th>
+      </tr></thead><tbody>`;
+      items.forEach(item => {
+        html += `<tr>
+          <td ${tdStyle}>${item.name}</td>
+          <td ${tdStyle}>${item.description || "—"}</td>
+          <td ${tdStyle}>${item.total}</td>
+          <td ${tdStyle}>${item.remaining}</td>
+          <td ${tdStyle}>${item.remarks      || "—"}</td>
+          <td ${tdStyle}>${statusBadge(item.stockStatus)}</td>
+        </tr>`;
+      });
+
+    } else {
+      // chemicals
+      html += `<table ${tableStyle}><thead><tr>
+        <th ${thStyle}>Name</th><th ${thStyle}>Barcode</th>
+        <th ${thStyle}>CAS #</th><th ${thStyle}>Container Size</th>
+        <th ${thStyle}>Location</th><th ${thStyle}>Date In</th>
+        <th ${thStyle}>Units</th><th ${thStyle}>State</th>
+        <th ${thStyle}>Total</th><th ${thStyle}>Remaining</th>
+        <th ${thStyle}>Status</th><th ${thStyle}>Stock</th>
+      </tr></thead><tbody>`;
+      items.forEach(item => {
+        html += `<tr>
+          <td ${tdStyle}>${item.name}</td>
+          <td ${tdStyle}>${item.barcode       || "—"}</td>
+          <td ${tdStyle}>${item.casNumber     || "—"}</td>
+          <td ${tdStyle}>${item.containerSize || "—"}</td>
+          <td ${tdStyle}>${item.location      || "—"}</td>
+          <td ${tdStyle}>${item.dateIn        || "—"}</td>
+          <td ${tdStyle}>${item.units         || "—"}</td>
+          <td ${tdStyle}>${item.state         || "—"}</td>
+          <td ${tdStyle}>${item.total}</td>
+          <td ${tdStyle}>${item.remaining}</td>
+          <td ${tdStyle}>${item.status        || "—"}</td>
+          <td ${tdStyle}>${statusBadge(item.stockStatus)}</td>
+        </tr>`;
+      });
+    }
+
+    html += "</tbody></table>";
+  });
+  return html;
+}
 
   if (type === "borrow") {
     let html = `<table ${tableStyle}><thead><tr>
@@ -3413,7 +4196,9 @@ function exportReportCSV() {
   const to          = document.getElementById("reportTo").value;
   const generatedAt = new Date().toLocaleString();
   const title       = reportTitles[currentReportType] || "Report";
-  const keys        = Object.keys(rows[0]);
+  const keySet = new Set();
+  rows.forEach(r => Object.keys(r).forEach(k => keySet.add(k)));
+  const keys        = Array.from(keySet);
   const totalCols   = keys.length;
 
   // A full-width separator line that spans all columns
@@ -3610,6 +4395,7 @@ function exportReportExcel() {
 
     return ws;
   }
+  
 
   // ── map report types to columns/rows ──────────────────────────────────────
   const wb = XLSX.utils.book_new();
@@ -3620,17 +4406,17 @@ function exportReportExcel() {
     const labels = ["Equipment", "Chemicals", "Glassware", "Fixed Assets"];
 
     const colMap = {
-      equipment:   ["Name", "Property Code", "Specs", "Location", "Total Qty", "Remaining", "Status"],
-      chemicals:   ["Name", "Specs", "Location", "Total Qty", "Remaining", "Status"],
-      glassware:   ["Name", "Specs", "Location", "Total Qty", "Remaining", "Status"],
-      fixedAssets: ["Name", "Property Code", "Specs", "Location", "Total Qty", "Remaining", "Status"],
+      equipment:   ["Name","Property Code","Description","Serial No.","nFEA","Expr1011","Total Qty","Remaining","Cost","Location","Status","Stock Status"],
+      chemicals:   ["Name","Barcode","CAS #","Container Size","Location","Date In","Units","State","Total Qty","Remaining","Status","Stock Status"],
+      glassware:   ["Name","Description","Total Qty","Remaining","Remarks","Stock Status"],
+      fixedAssets: ["Name","Property Code","Description","Serial No.","nFEA","Total Qty","Cost","Location","Status","Stock Status"],
     };
 
     const rowMap = {
-      equipment:   d => [d.name, d.propertyCode || "—", d.specs || "—", d.location || "—", d.total, d.remaining, d.status],
-      chemicals:   d => [d.name, d.specs || "—", d.location || "—", d.total, d.remaining, d.status],
-      glassware:   d => [d.name, d.specs || "—", d.location || "—", d.total, d.remaining, d.status],
-      fixedAssets: d => [d.name, d.propertyCode || "—", d.specs || "—", d.location || "—", d.total, d.remaining, d.status],
+      equipment:   d => [d.name, d.propertyCode||"—", d.description||"—", d.serialNumber||"—", d.nFEA||"—", d.expr1011||"—", d.total, d.remaining, d.cost||"—", d.location||"—", d.status||"—", d.stockStatus],
+      chemicals:   d => [d.name, d.barcode||"—", d.casNumber||"—", d.containerSize||"—", d.location||"—", d.dateIn||"—", d.units||"—", d.state||"—", d.total, d.remaining, d.status||"—", d.stockStatus],
+      glassware:   d => [d.name, d.description||"—", d.total, d.remaining, d.remarks||"—", d.stockStatus],
+      fixedAssets: d => [d.name, d.propertyCode||"—", d.description||"—", d.serialNumber||"—", d.nFEA||"—", d.total, d.cost||"—", d.location||"—", d.status||"—", d.stockStatus],
     };
 
     cats.forEach((c, i) => {
