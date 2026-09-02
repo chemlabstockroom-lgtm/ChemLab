@@ -151,12 +151,12 @@ const Borrow = mongoose.model("Borrow", BorrowSchema);
 // ===== Equipment =====
 const equipmentSchema = new mongoose.Schema({
   dateReceived: String,
-  propertyCode: String,
+  propertyCode: {type: String, unique: true, sparse: true},
   itemName: String,
-  specification: String,
+  description: String,
   serialNumber: String,
-  location: String,
   nFEA: String,
+  expr1011: String,
   quantity: Number,
   remainingQuantity: {
     type: Number,
@@ -165,6 +165,7 @@ const equipmentSchema = new mongoose.Schema({
     },
   },
   cost: Number,
+  location: String,
   status: String
 });
 const Equipment = mongoose.model("Equipment", equipmentSchema);
@@ -434,7 +435,7 @@ async function findAndDecrementItem(itemName, itemSpecs, quantityNeeded) {
   // Equipment
   item = await Equipment.findOne(
     specFilter
-    ? { itemName: nameRegex, specification: specFilter }
+    ? { itemName: nameRegex, description: specFilter }
     : { itemName: nameRegex }
   );
 
@@ -813,8 +814,9 @@ app.put("/api/admin/chemicals/:id", async (req, res) => {
         });
       }
     }
-    if (req.body.quantity) {
-      req.body.remainingQuantity = req.body.quantity;
+    const update = { ...req.body };
+    if (update.quantity !== undefined && update.remainingQuantity == undefined) {
+      update.remainingQuantity = update.quantity; // Update remainingQuantity if quantity is changed
     }
     const updated = await Chemical.findByIdAndUpdate(req.params.id, req.body, { new: true });
     res.json({ message: "Chemical updated", updated });
@@ -1123,37 +1125,74 @@ app.get("/api/admin/reports", authMiddleware, requireAdmin, async (req, res) => 
 
     // ── INVENTORY SUMMARY ──────────────────────────────────────────────────
     if (type === "inventory" || !type) {
-      const [eq, ch, gl, fa] = await Promise.all([
-        Equipment.find().lean(),
-        Chemical.find().lean(),
-        Glassware.find().lean(),
-        FixedAsset.find().lean()
-      ]);
+  const [eq, ch, gl, fa] = await Promise.all([
+    Equipment.find().lean(),
+    Chemical.find().lean(),
+    Glassware.find().lean(),
+    FixedAsset.find().lean()
+  ]);
 
-      const summarize = (arr, nameFn) => ({
-        items: arr.map(i => ({
-          name:      nameFn(i),
-          propertyCode: i.propertyCode || "",
-          specs:     i.specification || i.description || i.containerSize || "",
-          total:     i.quantity      || 0,
-          remaining: i.remainingQuantity ?? i.quantity ?? 0,
-          location:  i.location || "",
-          status:    (i.remainingQuantity ?? i.quantity ?? 0) <= 3 ? "Low Stock" : "OK"
-        })),
-        totalQty:     arr.reduce((s, i) => s + (Number(i.quantity) || 0), 0),
-        remainingQty: arr.reduce((s, i) => s + (Number(i.remainingQuantity ?? i.quantity) || 0), 0),
-        lowStockCount: arr.filter(i => (Number(i.remainingQuantity ?? i.quantity) || 0) <= 3).length
-      });
+  const isLow = (remaining) => (Number(remaining) || 0) <= 3;
 
-      return res.json({
-        type: "inventory",
-        equipment:   summarize(eq,  i => i.itemName      || ""),
-        chemicals:   summarize(ch,  i => i.chemicalName  || ""),
-        glassware:   summarize(gl,  i => i.itemName      || ""),
-        fixedAssets: summarize(fa,  i => i.itemName      || ""),
-        generatedAt: new Date()
-      });
-    }
+  const equipmentItems = eq.map(i => {
+    const remaining = i.remainingQuantity ?? i.quantity ?? 0;
+    return {
+      name: i.itemName || "", propertyCode: i.propertyCode || "",
+      description: i.description || "", serialNumber: i.serialNumber || "",
+      nFEA: i.nFEA || "", expr1011: i.expr1011 || "",
+      total: i.quantity || 0, remaining, cost: i.cost ?? "",
+      location: i.location || "", status: i.status || "",
+      stockStatus: isLow(remaining) ? "Low Stock" : "OK"
+    };
+  });
+
+  const chemicalItems = ch.map(i => {
+    const remaining = i.remainingQuantity ?? i.quantity ?? 0;
+    return {
+      name: i.chemicalName || "", barcode: i.barcode || "",
+      casNumber: i.casNumber || "", containerSize: i.containerSize || "",
+      location: i.location || "", dateIn: i.dateIn || "",
+      units: i.units || "", state: i.state || "",
+      total: i.quantity || 0, remaining, status: i.status || "Available",
+      stockStatus: isLow(remaining) ? "Low Stock" : "OK"
+    };
+  });
+
+  const glasswareItems = gl.map(i => {
+    const remaining = i.remainingQuantity ?? i.quantity ?? 0;
+    return {
+      name: i.itemName || "", description: i.description || "",
+      total: i.quantity || 0, remaining, remarks: i.remarks || "",
+      stockStatus: isLow(remaining) ? "Low Stock" : "OK"
+    };
+  });
+
+  const fixedAssetItems = fa.map(i => {
+    const remaining = i.quantity || 0; // no remainingQuantity field on this model
+    return {
+      name: i.itemName || "", propertyCode: i.propertyCode || "",
+      description: i.description || "", serialNumber: i.serialNumber || "",
+      nFEA: i.nFEA || "", total: i.quantity || 0, cost: i.cost ?? "",
+      location: i.location || "", status: i.status || "",
+      stockStatus: isLow(remaining) ? "Low Stock" : "OK"
+    };
+  });
+
+  const totals = (arr, remFn) => ({
+    totalQty:      arr.reduce((s, i) => s + (Number(i.quantity) || 0), 0),
+    remainingQty:  arr.reduce((s, i) => s + (Number(remFn(i)) || 0), 0),
+    lowStockCount: arr.filter(i => isLow(remFn(i))).length
+  });
+
+  return res.json({
+    type: "inventory",
+    equipment:   { items: equipmentItems,  ...totals(eq, i => i.remainingQuantity ?? i.quantity ?? 0) },
+    chemicals:   { items: chemicalItems,   ...totals(ch, i => i.remainingQuantity ?? i.quantity ?? 0) },
+    glassware:   { items: glasswareItems,  ...totals(gl, i => i.remainingQuantity ?? i.quantity ?? 0) },
+    fixedAssets: { items: fixedAssetItems, ...totals(fa, i => i.quantity ?? 0) },
+    generatedAt: new Date()
+  });
+}
 
     // ── BORROW ACTIVITY ────────────────────────────────────────────────────
     if (type === "borrow") {
@@ -2909,6 +2948,7 @@ app.post("/api/auth/forgot-password", async (req, res) => {
 // ====== SPA CATCH-ALL ROUTE ======
 // This must remain at the very bottom of the file!
 const path = require('path');
+const { type } = require('os');
 
 app.get('/{*splat}', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
